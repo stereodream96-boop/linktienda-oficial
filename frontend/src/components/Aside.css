@@ -1,0 +1,41 @@
+.lt-aside {
+  width: 240px;
+  background: #fafafa;
+  border-right: 1px solid #eee;
+  padding: 16px;
+  box-sizing: border-box;
+  height: 100vh;
+  position: sticky;
+  top: 0;
+}
+.lt-aside-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 16px 0;
+}
+.lt-aside-list li {
+  margin-bottom: 8px;
+}
+.lt-aside-list a {
+  color: #333;
+  text-decoration: none;
+  display: block;
+  padding: 8px 10px;
+  border-radius: 4px;
+}
+.lt-aside-list a:hover {
+  background: #f0f0f0;
+}
+.lt-aside-cta {
+  margin-top: 12px;
+}
+.lt-aside-cta button {
+  width: 100%;
+  padding: 10px;
+  background: #0b76ef;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.lt-aside-cta button:hover { opacity: 0.95; }

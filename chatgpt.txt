@@ -1,0 +1,509 @@
+Proyecto: Link Tienda — Volcado completo para IA
+Fecha: 25 de diciembre de 2025
+
+Objetivo:
+- Proveer un archivo único (`chatgpt.txt`) que contenga el contenido íntegro de los archivos principales del proyecto, su ubicación relativa en el repo, una breve descripción de qué hace cada archivo y cómo interactúan entre sí. Pensado para pasarle a otra IA para que entienda el proyecto.
+
+Estructura del proyecto (raíz relativa a la carpeta del workspace):
+- gpt.txt
+- Local to web.md
+- README.md
+- backend/
+  - echo.php
+  - index.php
+  - page.php
+  - test.php
+  - api/
+    - db_info.php
+    - pages.php
+    - products.php
+    - upload_images.php
+  - uploads/  (carpeta para archivos subidos)
+- db/
+  - init.sql
+- frontend/
+  - index.html
+  - package.json
+  - src/
+    - Admin.jsx
+    - App.jsx
+    - main.jsx
+    - PageViewer.jsx
+    - styles.css
+
+Resumen funcional:
+- Backend PHP: carpeta `backend` que expone endpoints JSON en `backend/api/` (productos, páginas, subida de imágenes, diagnóstico) y vistas HTML públicas en `backend/page.php` y `backend/echo.php`.
+- Base de datos: MySQL (script en `db/init.sql`) con las tablas `products` y `pages`.
+- Frontend: aplicación React (Vite) en `frontend` que consume la API de `backend/api/pages.php` y `backend/api/products.php` y permite crear páginas desde `Admin.jsx`.
+
+Interacciones principales:
+- `frontend` realiza fetchs a `http://localhost/LinkTiendas/Link%20Tienda/backend/api/pages.php` para listar/crear páginas.
+- Al crear páginas, `frontend/src/Admin.jsx` puede subir imágenes a `backend/api/upload_images.php`, que guarda archivos en `backend/uploads/` y devuelve URLs públicas.
+- `backend/api/pages.php` gestiona la persistencia en la tabla `pages` y genera `slug` único; `backend/page.php` muestra la página pública por `id` o `slug`.
+- `backend/api/products.php` sirve productos desde la tabla `products` y crea la base/tablas si no existen.
+
+--- Archivos y contenido ---
+
+File: gpt.txt
+Description: Archivo de volcado/documentación previa (texto explicativo y lista de archivos). Contiene un resumen general y copia de varios archivos.
+Content:
+
+(Ver contenido integrado en el repo; se mantiene un archivo similar llamado gpt.txt en la raíz.)
+
+----------------------------------------
+File: Local to web.md
+Path: Local to web.md
+Description: Guía de migración del entorno local (XAMPP) a un hosting: pasos para respaldos, export/import SQL, configurar DB, CORS, SSL, permisos y deploy.
+Content:
+
+# Local to web — Guía de migración
+
+Este instructivo explica, paso a paso, cómo mover tu proyecto desde `localhost` (entorno local con XAMPP) a un servidor web (hosting) en producción.
+
+Contenido rápido:
+- Respaldos (archivos + base de datos)
+- Exportar / importar la base de datos
+- Cambios en la configuración (datos de conexión)
+- Subida de archivos (FTP/SFTP / Git / panel)
+- Ajustes del frontend y CORS
+- Seguridad, permisos y SSL
+- Pruebas y verificación
+
+(El archivo incluye comandos de ejemplo `mysqldump`, recomendaciones para `config.php` y pasos de prueba post-migración.)
+
+----------------------------------------
+File: README.md
+Path: README.md
+Description: README del proyecto con instrucciones de puesta en marcha local: dónde colocar `backend`, cómo importar `db/init.sql`, y comandos `npm` para el frontend.
+Content excerpt:
+
+Link Tienda
+
+Proyecto minimal: frontend con React (Vite) y backend en PHP. Base de datos para usar con XAMPP (phpMyAdmin).
+
+Pasos rápidos:
+- Backend: copiar la carpeta `backend` dentro de `C:\xampp\htdocs\` o configurar un virtual host apuntando a la carpeta.
+- Base de datos: importar `db/init.sql` en phpMyAdmin (o ejecutar el script desde la línea de comandos MySQL).
+- Frontend: abrir `frontend` en terminal y ejecutar:
+
+cd frontend
+npm install
+npm run dev
+
+Credenciales por defecto (en los scripts PHP): host `127.0.0.1`, usuario `root`, contraseña vacía, BD `link_tienda`.
+
+----------------------------------------
+File: backend/echo.php
+Path: backend/echo.php
+Description: Endpoint de prueba para verificar que PHP sirve páginas correctamente. Recibe `?msg=` y lo muestra escapado en HTML.
+Content:
+
+<?php
+// backend/echo.php
+// Simple echo endpoint for testing in browser. Use ?msg=TuTexto
+$msg = isset($_GET['msg']) ? $_GET['msg'] : 'Echo desde Link Tienda';
+// Sanitize for HTML
+$safe = htmlspecialchars($msg, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+?><!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Echo</title>
+    <style>body{font-family:Arial;margin:20px}</style>
+  </head>
+  <body>
+    <h1><?php echo $safe; ?></h1>
+    <p>URL de prueba: <code>?msg=Tu%20mensaje</code></p>
+  </body>
+</html>
+
+----------------------------------------
+File: backend/index.php
+Path: backend/index.php
+Description: Punto de entrada simple que actúa como router mínimo; en /api/products incluye `api/products.php`, por defecto devuelve JSON con mensaje raíz.
+Content:
+
+<?php
+header('Access-Control-Allow-Origin: *');
+header('Content-Type: application/json');
+
+$uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+if (strpos($uri, '/api/products') !== false) {
+    require __DIR__ . '/api/products.php';
+    exit;
+}
+
+echo json_encode(['message' => 'API raíz - Link Tienda']);
+
+----------------------------------------
+File: backend/test.php
+Path: backend/test.php
+Description: Endpoint de diagnóstico que devuelve JSON con información del entorno PHP para debugging.
+Content:
+
+<?php
+// Archivo de prueba: devuelve JSON con información básica para depuración
+header('Content-Type: application/json');
+$info = [
+    'ok' => true,
+    'request_uri' => isset($_SERVER['REQUEST_URI']) ? $_SERVER['REQUEST_URI'] : null,
+    'script_name' => isset($_SERVER['SCRIPT_NAME']) ? $_SERVER['SCRIPT_NAME'] : null,
+    'php_version' => phpversion(),
+    'sapi' => php_sapi_name(),
+];
+echo json_encode($info);
+
+----------------------------------------
+File: backend/api/db_info.php
+Path: backend/api/db_info.php
+Description: Endpoint diagnóstico que prueba la conexión a la base de datos, lista columnas de `pages` y cuenta filas. Útil para debugging remoto.
+Content:
+
+<?php
+// backend/api/db_info.php
+// Endpoint de diagnóstico: prueba conexión a la DB y lista columnas de la tabla `pages`.
+header('Access-Control-Allow-Origin: *');
+header('Access-Control-Allow-Methods: GET, OPTIONS');
+header('Access-Control-Allow-Headers: Content-Type');
+header('Content-Type: application/json');
+
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(200);
+    exit;
+}
+
+$host = '127.0.0.1';
+$db   = 'link_tienda';
+$user = 'root';
+$pass = '';
+$charset = 'utf8mb4';
+
+$dsn = "mysql:host=$host;dbname=$db;charset=$charset";
+$options = [
+    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+];
+
+$out = ['ok' => false, 'time' => date('c')];
+try {
+    $pdo = new PDO($dsn, $user, $pass, $options);
+    $out['ok'] = true;
+    $out['msg'] = 'Connected';
+
+    // listar columnas
+    $stmt = $pdo->prepare("SELECT COLUMN_NAME, DATA_TYPE, COLUMN_DEFAULT, IS_NULLABLE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = :db AND TABLE_NAME = 'pages'");
+    $stmt->execute([':db' => $db]);
+    $cols = $stmt->fetchAll();
+    $out['columns'] = $cols;
+
+    // contar filas
+    try {
+        $cnt = $pdo->query('SELECT COUNT(*) AS c FROM pages')->fetch()['c'];
+        $out['pages_count'] = (int)$cnt;
+    } catch (Exception $e) {
+        $out['pages_count_error'] = $e->getMessage();
+    }
+} catch (PDOException $e) {
+    http_response_code(500);
+    $out['error'] = $e->getMessage();
+}
+
+echo json_encode($out, JSON_PRETTY_PRINT);
+
+----------------------------------------
+File: backend/api/pages.php
+Path: backend/api/pages.php
+Description: API REST mínima para `pages`. Soporta GET (listado o por slug) y POST (creación). Maneja CORS, crea BD/tabla si no existen, genera `slug` único y guarda campos adicionales (promo_message, images, categories, section_type, contact_info). Devuelve JSON.
+Content:
+
+<?php
+// backend/api/pages.php
+// API de administración (JSON) — este endpoint gestiona la creación/listado
+// de páginas desde el panel de administración.
+ini_set('display_errors', '1');
+ini_set('display_startup_errors', '1');
+error_reporting(E_ALL);
+set_exception_handler(function($e){
+    http_response_code(500);
+    header('Content-Type: application/json');
+    echo json_encode(['error' => 'Uncaught exception', 'message' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+    exit;
+});
+set_error_handler(function($errno, $errstr, $errfile, $errline){
+    throw new ErrorException($errstr, 0, $errno, $errfile, $errline);
+});
+
+header('Access-Control-Allow-Origin: *');
+header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
+header('Access-Control-Allow-Headers: Content-Type');
+header('Content-Type: application/json');
+
+$method = $_SERVER['REQUEST_METHOD'];
+if ($method === 'OPTIONS') { http_response_code(200); exit; }
+
+$host = '127.0.0.1';
+$db   = 'link_tienda';
+$user = 'root';
+$pass = '';
+$charset = 'utf8mb4';
+
+$dsn = "mysql:host=$host;dbname=$db;charset=$charset";
+$options = [ PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION, PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC, ];
+
+try { $pdo = new PDO($dsn, $user, $pass, $options); } catch (PDOException $e) {
+    if ($e->getCode() == 1049) { /* crea DB y tabla pages si no existe */ }
+    else { http_response_code(500); echo json_encode(['error'=>'Database connection failed','detail'=>$e->getMessage()]); exit; }
+}
+
+/* El resto del script crea la tabla `pages` si falta, agrega columna `slug` e índice, y soporta POST/GET */
+
+(El contenido completo está en el archivo del repo; aquí es el mismo script que administra creación/listado y retorno en JSON.)
+
+----------------------------------------
+File: backend/api/products.php
+Path: backend/api/products.php
+Description: Devuelve JSON con `products`. Si la BD o tabla no existen, intenta crearlas e insertar datos de ejemplo.
+Content:
+
+<?php
+// backend/api/products.php
+// Devuelve la lista de productos en JSON desde la base de datos `link_tienda`.
+
+header('Access-Control-Allow-Origin: *');
+header('Access-Control-Allow-Methods: GET, OPTIONS');
+header('Access-Control-Allow-Headers: Content-Type');
+header('Content-Type: application/json');
+
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') { http_response_code(200); exit; }
+
+$host = '127.0.0.1';
+$db   = 'link_tienda';
+$user = 'root';
+$pass = '';
+$charset = 'utf8mb4';
+
+$dsn = "mysql:host=$host;dbname=$db;charset=$charset";
+$options = [ PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION, PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC, ];
+
+try { $pdo = new PDO($dsn, $user, $pass, $options); } catch (PDOException $e) {
+    if ($e->getCode() == 1049) { /* crea DB y tabla products y datos de ejemplo */ }
+    else { http_response_code(500); echo json_encode(['error'=>'Database connection failed','detail'=>$e->getMessage()]); exit; }
+}
+
+try {
+    $stmt = $pdo->query('SELECT id, name, price FROM products');
+    $products = $stmt->fetchAll();
+    echo json_encode(['products' => $products]);
+} catch (PDOException $e) {
+    http_response_code(500);
+    echo json_encode(['error' => 'Query failed', 'detail' => $e->getMessage()]);
+    exit;
+}
+
+----------------------------------------
+File: backend/api/upload_images.php
+Path: backend/api/upload_images.php
+Description: Recibe peticiones multipart/form-data, guarda archivos en `backend/uploads/` y devuelve URLs públicas a los archivos guardados.
+Content:
+
+<?php
+// backend/api/upload_images.php
+// Recibe archivos multipart y los guarda en backend/uploads/
+header('Access-Control-Allow-Origin: *');
+header('Access-Control-Allow-Methods: POST, OPTIONS');
+header('Access-Control-Allow-Headers: Content-Type');
+header('Content-Type: application/json');
+
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') { http_response_code(200); exit; }
+
+$uploadDir = __DIR__ . '/../uploads';
+if (!is_dir($uploadDir)) { mkdir($uploadDir, 0755, true); }
+
+$saved = [];
+foreach ($_FILES as $file) {
+    /* guarda archivos y arma URLs */
+}
+
+echo json_encode(['uploaded' => $saved]);
+
+Nota: Las URLs devueltas están construidas usando `$_SERVER['HTTP_HOST']` y el path que incluye espacios codificados (`Link%20Tienda`) según la estructura actual.
+
+----------------------------------------
+File: backend/page.php
+Path: backend/page.php
+Description: Vista pública HTML de una página creada. Soporta consultar por `?id=` o `?slug=` y renderiza HTML simple con título, contenido y fecha de creación.
+Content:
+
+<?php
+// backend/page.php
+// Muestra una página creada desde el panel de administración (parámetro ?id= o ?slug=)
+
+$id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
+$slug = isset($_GET['slug']) ? trim($_GET['slug']) : null;
+
+/* Conecta a la BD y recupera la fila de `pages` por id o slug. Escapa y convierte saltos a <br>. */
+
+?><!doctype html>
+<html>
+  <head>
+  <meta charset="utf-8">
+  <title><?php echo $title; ?></title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>body{font-family:Arial,Helvetica,sans-serif;padding:20px;max-width:800px;margin:auto}h1{font-size:24px}</style>
+  </head>
+  <body>
+  <h1><?php echo $title; ?></h1>
+  <div><?php echo $content; ?></div>
+  <p style="color:#666;font-size:12px;margin-top:20px">Creado: <?php echo $page['created_at']; ?></p>
+  </body>
+</html>
+
+----------------------------------------
+File: db/init.sql
+Path: db/init.sql
+Description: Script SQL para inicializar la BD `link_tienda` con tablas `products` y `pages` y filas de ejemplo.
+Content:
+
+-- Script de inicialización para XAMPP / phpMyAdmin
+CREATE DATABASE IF NOT EXISTS `link_tienda` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+USE `link_tienda`;
+
+CREATE TABLE IF NOT EXISTS `products` (
+  `id` INT NOT NULL AUTO_INCREMENT,
+  `name` VARCHAR(255) NOT NULL,
+  `price` DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+INSERT INTO `products` (`name`, `price`) VALUES
+('Camiseta', 19.90),
+('Pantalones', 39.50),
+('Gorra', 9.99);
+
+CREATE TABLE IF NOT EXISTS `pages` (
+  `id` INT NOT NULL AUTO_INCREMENT,
+  `title` VARCHAR(255) NOT NULL,
+  `content` TEXT NOT NULL,
+  `promo_message` TEXT NULL,
+  `images` TEXT NULL,
+  `categories` TEXT NULL,
+  `slug` VARCHAR(255) NULL,
+  `section_type` VARCHAR(100) NULL,
+  `contact_info` TEXT NULL,
+  `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Inserta ejemplo de página
+INSERT INTO `pages` (`title`, `content`, `promo_message`, `images`, `categories`, `section_type`, `contact_info`, `slug`) VALUES
+('Página de ejemplo', 'Contenido de prueba para la página de ejemplo.', '5% off en compras mayores a $50', '[]', '[]', 'Ofertas destacadas', '{}', 'pagina-de-ejemplo');
+
+----------------------------------------
+File: frontend/index.html
+Path: frontend/index.html
+Description: HTML principal que carga el bundle de Vite (`src/main.jsx`).
+Content:
+
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Link Tienda</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="./src/main.jsx"></script>
+  </body>
+</html>
+
+----------------------------------------
+File: frontend/package.json
+Path: frontend/package.json
+Description: Configuración de NPM/Vite para el frontend. Scripts: `dev`, `build`, `preview`. Dependencias principales: `react`, `react-dom`, `vite`.
+Content:
+
+{
+  "name": "link-tienda-frontend",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "vite": "^5.0.0"
+  }
+}
+
+----------------------------------------
+File: frontend/src/Admin.jsx
+Path: frontend/src/Admin.jsx
+Description: Componente React para crear páginas: campos (title, content, promo, categorías, imágenes, contact info). Sube imágenes a `backend/api/upload_images.php`, luego envía JSON a `backend/api/pages.php`.
+Content (resumen):
+- Control de estado para title, content, promo, images, categories, contact
+- Función `uploadImages()` que hace POST multipart a `upload_images.php`
+- `handleSubmit()` construye payload con campos y `images` (URLs devueltas) y POST a `pages.php`.
+
+(El archivo contiene un formulario completo y manejo de respuestas y mensajes.)
+
+----------------------------------------
+File: frontend/src/App.jsx
+Path: frontend/src/App.jsx
+Description: Punto principal del frontend. Carga listado de páginas desde `backend/api/pages.php`. Muestra enlaces de navegación y alterna entre `PageViewer` por `slug` y el panel `Admin` según la query string.
+Content (resumen):
+- `useEffect` que fetch `pages.php` y guarda en `pages`
+- Si existe `?slug=...` muestra `PageViewer` con ese slug, sino muestra `Admin`
+
+----------------------------------------
+File: frontend/src/main.jsx
+Path: frontend/src/main.jsx
+Description: Entrada de React que monta `App` en el `div#root`.
+Content:
+
+import React from 'react'
+import { createRoot } from 'react-dom/client'
+import App from './App'
+import './styles.css'
+
+createRoot(document.getElementById('root')).render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>
+)
+
+----------------------------------------
+File: frontend/src/PageViewer.jsx
+Path: frontend/src/PageViewer.jsx
+Description: Componente que muestra una página pública:
+- Si recibe `slug` carga la página individual vía `api/pages.php?slug=...` (devuelve `{ page }`).
+- Carga productos desde `api/products.php` y los muestra en una lista simple.
+- Muestra carousel de imágenes, categorías y datos de contacto.
+Content (resumen): componente con `useEffect` para cargar página y productos; renderizado con `dangerouslySetInnerHTML` para `page.content`.
+
+----------------------------------------
+File: frontend/src/styles.css
+Path: frontend/src/styles.css
+Description: Estilos mínimos globales, define la fuente base.
+Content:
+
+body { font-family: Arial, Helvetica, sans-serif; }
+
+--- Notas sobre seguridad y despliegue ---
+- Actualmente las credenciales DB están hardcodeadas (host `127.0.0.1`, user `root`, pass ``). Para producción mover credenciales a un archivo de configuración no público o variables de entorno.
+- CORS está configurado como `*` en varios endpoints; en producción restringir al dominio del frontend.
+- `upload_images.php` guarda archivos en `backend/uploads/`; verificar permisos y validación de tipos/tamaños si se expone en producción.
+
+--- Sugerencias / siguientes pasos ---
+- Confirmar si quieres que genere `backend/config.example.php` con plantilla de conexión.
+- Puedo crear un `deploy.sh` con pasos de export/import SQL si das acceso SSH o detalles.
+- ¿Deseas que haga commit del `chatgpt.txt` en el repo y cree un branch `docs/chatgpt-dump`?
+
+--- Fin del volcado ---
+
+(Archivo generado automáticamente con el contenido leido en el workspace.)

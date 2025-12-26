@@ -1,0 +1,1091 @@
+Especificación y copia de archivos — Proyecto "Link Tienda"
+
+Fecha: 25 de diciembre de 2025
+
+Resumen de lo hecho hasta ahora:
+- Estructura básica del proyecto creada: backend (PHP), frontend (React/Vite) y DB (SQL).
+- Backend: endpoints de prueba (`echo.php`, `test.php`), archivo de entrada `index.php` que actúa como router mínimo, y `backend/api/products.php` que gestiona la conexión a MySQL y devuelve productos en JSON.
+- Base de datos: script de inicialización `db/init.sql` que crea la base `link_tienda` y la tabla `products` con datos de ejemplo.
+- Frontend: aplicación React mínima (`src/App.jsx`, `src/main.jsx`, `styles.css`) y `index.html` que carga el bundle.
+- Archivos de configuración: `frontend/package.json` con scripts de Vite.
+
+Propósito de este archivo:
+- Documentar qué hay en el repo y por qué.
+- Incluir copia completa del contenido de los archivos principales para referencia.
+
+Ubicación del archivo generado:
+- gpt.txt (raíz del proyecto)
+
+DETALLE DE ARCHIVOS Y CONTENIDOS
+
+--- Local to web.md (raíz)
+
+Contenido:
+
+Local to web — Guía de migración
+
+Este instructivo explica, paso a paso, cómo mover tu proyecto desde `localhost` (entorno local con XAMPP) a un servidor web (hosting) en producción.
+
+Contenido rápido:
+- Respaldos (archivos + base de datos)
+- Exportar / importar la base de datos
+- Cambios en la configuración (datos de conexión)
+- Subida de archivos (FTP/SFTP / Git / panel)
+- Ajustes del frontend y CORS
+- Seguridad, permisos y SSL
+- Pruebas y verificación
+
+--- README.md (raíz)
+
+Contenido:
+
+Link Tienda
+
+Proyecto minimal: frontend con React (Vite) y backend en PHP. Base de datos para usar con XAMPP (phpMyAdmin).
+
+Pasos rápidos:
+
+- Backend: copiar la carpeta backend dentro de C:\xampp\htdocs\ o configurar un virtual host apuntando a la carpeta.
+- Base de datos: importar db/init.sql en phpMyAdmin (o ejecutar el script desde la línea de comandos MySQL).
+- Frontend: abrir frontend en terminal y ejecutar: npm install && npm run dev
+
+API de ejemplo:
+- http://localhost/backend/api/products (si pones backend en htdocs) devolverá JSON de productos.
+
+--- backend/echo.php
+
+Contenido:
+
+<?php
+// backend/echo.php
+// Simple echo endpoint for testing in browser. Use ?msg=TuTexto
+$msg = isset($_GET['msg']) ? $_GET['msg'] : 'Echo desde Link Tienda';
+// Sanitize for HTML
+$safe = htmlspecialchars($msg, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+?><!doctype html>
+Proyecto: Link Tienda — Volcado completo de archivos
+
+Fecha del volcado: 25 de diciembre de 2025
+
+Descripción: este archivo contiene el listado de archivos del proyecto y su contenido. Está pensado para referencia y respaldo. Los paths son relativos a la raíz del proyecto.
+
+--- Archivo: Local to web.md
+
+Contenido:
+
+# Local to web — Guía de migración
+
+Este instructivo explica, paso a paso, cómo mover tu proyecto desde `localhost` (entorno local con XAMPP) a un servidor web (hosting) en producción.
+
+Contenido rápido:
+- Respaldos (archivos + base de datos)
+- Exportar / importar la base de datos
+- Cambios en la configuración (datos de conexión)
+- Subida de archivos (FTP/SFTP / Git / panel)
+- Ajustes del frontend y CORS
+- Seguridad, permisos y SSL
+- Pruebas y verificación
+
+Ejemplos de comandos y notas en el archivo original.
+
+--- Archivo: README.md
+
+Contenido:
+
+# Link Tienda
+
+Proyecto minimal: frontend con React (Vite) y backend en PHP. Base de datos para usar con XAMPP (phpMyAdmin).
+
+Pasos rápidos:
+
+- Backend: copiar la carpeta `backend` dentro de `C:\xampp\htdocs\` o configurar un virtual host apuntando a la carpeta.
+- Base de datos: importar `db/init.sql` en phpMyAdmin (o ejecutar el script desde la línea de comandos MySQL).
+- Frontend: abrir `frontend` en terminal y ejecutar: `npm install` && `npm run dev`
+
+API de ejemplo:
+- `http://localhost/backend/api/products` (si pones `backend` en `htdocs`) devolverá JSON de productos.
+
+--- Archivo: backend/echo.php
+
+Contenido:
+
+<?php
+// backend/echo.php
+// Simple echo endpoint for testing in browser. Use ?msg=TuTexto
+$msg = isset($_GET['msg']) ? $_GET['msg'] : 'Echo desde Link Tienda';
+// Sanitize for HTML
+$safe = htmlspecialchars($msg, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+?><!doctype html>
+<html>
+  <head>
+  <meta charset="utf-8">
+  <title>Echo</title>
+  <style>body{font-family:Arial;margin:20px}</style>
+  </head>
+  <body>
+  <h1><?php echo $safe; ?></h1>
+  <p>URL de prueba: <code>?msg=Tu%20mensaje</code></p>
+  </body>
+</html>
+
+--- Archivo: backend/index.php
+
+Contenido:
+
+<?php
+header('Access-Control-Allow-Origin: *');
+header('Content-Type: application/json');
+
+$uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+if (strpos($uri, '/api/products') !== false) {
+  require __DIR__ . '/api/products.php';
+  exit;
+}
+
+echo json_encode(['message' => 'API raíz - Link Tienda']);
+
+--- Archivo: backend/test.php
+
+Contenido:
+
+<?php
+// Archivo de prueba: devuelve JSON con información básica para depuración
+header('Content-Type: application/json');
+$info = [
+  'ok' => true,
+  'request_uri' => isset($_SERVER['REQUEST_URI']) ? $_SERVER['REQUEST_URI'] : null,
+  'script_name' => isset($_SERVER['SCRIPT_NAME']) ? $_SERVER['SCRIPT_NAME'] : null,
+  'php_version' => phpversion(),
+  'sapi' => php_sapi_name(),
+];
+echo json_encode($info);
+
+--- Archivo: backend/api/products.php
+
+Contenido:
+
+<?php
+// backend/api/products.php
+// Devuelve la lista de productos en JSON desde la base de datos `link_tienda`.
+
+// CORS
+header('Access-Control-Allow-Origin: *');
+header('Access-Control-Allow-Methods: GET, OPTIONS');
+header('Access-Control-Allow-Headers: Content-Type');
+header('Content-Type: application/json');
+
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+  http_response_code(200);
+  exit;
+}
+
+// Configuración de conexión (consistente con README.md)
+$host = '127.0.0.1';
+$db   = 'link_tienda';
+$user = 'root';
+$pass = '';
+$charset = 'utf8mb4';
+
+$dsn = "mysql:host=$host;dbname=$db;charset=$charset";
+$options = [
+  PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+  PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+];
+
+try {
+  $pdo = new PDO($dsn, $user, $pass, $options);
+} catch (PDOException $e) {
+  // If the database does not exist (SQLSTATE 1049), try to create it automatically.
+  if ($e->getCode() == 1049) {
+    try {
+      $dsnNoDb = "mysql:host=$host;charset=$charset";
+      $pdoNoDb = new PDO($dsnNoDb, $user, $pass, $options);
+      $pdoNoDb->exec("CREATE DATABASE IF NOT EXISTS `$db` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
+      $pdoNoDb->exec("USE `$db`");
+      $pdoNoDb->exec("CREATE TABLE IF NOT EXISTS `products` (
+        `id` INT NOT NULL AUTO_INCREMENT,
+        `name` VARCHAR(255) NOT NULL,
+        `price` DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+        PRIMARY KEY (`id`)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
+      // Insert sample data if table empty
+      $count = $pdoNoDb->query('SELECT COUNT(*) AS c FROM products')->fetch()['c'];
+      if ($count == 0) {
+        $pdoNoDb->exec("INSERT INTO `products` (`name`, `price`) VALUES
+          ('Camiseta', 19.90),
+          ('Pantalones', 39.50),
+          ('Gorra', 9.99)");
+      }
+      // Reconnect using the full DSN
+      $pdo = new PDO($dsn, $user, $pass, $options);
+    } catch (PDOException $e2) {
+      http_response_code(500);
+      echo json_encode(['error' => 'Failed to create database', 'detail' => $e2->getMessage()]);
+      exit;
+    }
+  } else {
+    http_response_code(500);
+    echo json_encode(['error' => 'Database connection failed', 'detail' => $e->getMessage()]);
+    exit;
+  }
+}
+
+try {
+  $stmt = $pdo->query('SELECT id, name, price FROM products');
+  $products = $stmt->fetchAll();
+  echo json_encode(['products' => $products]);
+} catch (PDOException $e) {
+  http_response_code(500);
+  echo json_encode(['error' => 'Query failed', 'detail' => $e->getMessage()]);
+  exit;
+}
+
+--- Archivo: backend/api/pages.php
+
+Contenido (maneja GET/POST, CORS, campos extendidos, slug único):
+
+<?php
+// HABILITAR DEPURACIÓN TEMPORAL: mostrar errores y devolver JSON con detalles
+ini_set('display_errors', '1');
+ini_set('display_startup_errors', '1');
+error_reporting(E_ALL);
+set_exception_handler(function($e){
+  http_response_code(500);
+  header('Content-Type: application/json');
+  echo json_encode(['error' => 'Uncaught exception', 'message' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+  exit;
+});
+set_error_handler(function($errno, $errstr, $errfile, $errline){
+  throw new ErrorException($errstr, 0, $errno, $errfile, $errline);
+});
+
+// CORS: permitir requests desde el dev server y otros orígenes (ajustar según necesidad)
+header('Access-Control-Allow-Origin: *');
+header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
+header('Access-Control-Allow-Headers: Content-Type');
+header('Content-Type: application/json');
+
+$method = $_SERVER['REQUEST_METHOD'];
+
+// Responder preflight
+if ($method === 'OPTIONS') {
+  http_response_code(200);
+  exit;
+}
+
+// Configuración de conexión
+$host = '127.0.0.1';
+$db   = 'link_tienda';
+$user = 'root';
+$pass = '';
+$charset = 'utf8mb4';
+
+$dsn = "mysql:host=$host;dbname=$db;charset=$charset";
+$options = [
+  PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+  PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+];
+
+// Conexión y creación de base/tablas si es necesario
+try {
+  $pdo = new PDO($dsn, $user, $pass, $options);
+} catch (PDOException $e) {
+  if ($e->getCode() == 1049) {
+    try {
+      $dsnNoDb = "mysql:host=$host;charset=$charset";
+      $pdoNoDb = new PDO($dsnNoDb, $user, $pass, $options);
+      $pdoNoDb->exec("CREATE DATABASE IF NOT EXISTS `$db` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
+      $pdoNoDb->exec("USE `$db`");
+      $pdoNoDb->exec("CREATE TABLE IF NOT EXISTS `pages` (
+        `id` INT NOT NULL AUTO_INCREMENT,
+        `title` VARCHAR(255) NOT NULL,
+        `content` TEXT NOT NULL,
+        `promo_message` TEXT NULL,
+        `images` TEXT NULL,
+        `categories` TEXT NULL,
+        `section_type` VARCHAR(100) NULL,
+        `contact_info` TEXT NULL,
+        `slug` VARCHAR(255) NULL,
+        `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (`id`)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
+      $pdo = new PDO($dsn, $user, $pass, $options);
+    } catch (PDOException $e2) {
+      http_response_code(500);
+      echo json_encode(['error' => 'Failed to create database/table', 'detail' => $e2->getMessage()]);
+      exit;
+    }
+  } else {
+    http_response_code(500);
+    echo json_encode(['error' => 'Database connection failed', 'detail' => $e->getMessage()]);
+    exit;
+  }
+}
+
+// Asegurar que la tabla `pages` exista (evita SQLSTATE[42S02])
+try {
+  $pdo->exec("CREATE TABLE IF NOT EXISTS `pages` (
+    `id` INT NOT NULL AUTO_INCREMENT,
+    `title` VARCHAR(255) NOT NULL,
+    `content` TEXT NOT NULL,
+    `promo_message` TEXT NULL,
+    `images` TEXT NULL,
+    `categories` TEXT NULL,
+    `section_type` VARCHAR(100) NULL,
+    `contact_info` TEXT NULL,
+    `slug` VARCHAR(255) NULL,
+    `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
+} catch (PDOException $e) {
+  // Si falla al crear la tabla, continuar y dejar que las consultas posteriores reporten el error
+}
+
+// Asegurar que la columna `slug` exista y tenga índice único
+try {
+  $stmt = $pdo->prepare("SELECT COUNT(*) AS c FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = :db AND TABLE_NAME = 'pages' AND COLUMN_NAME = 'slug'");
+  $stmt->execute([':db' => $db]);
+  $has = (int)$stmt->fetch()['c'];
+  if ($has === 0) {
+    // agregar columna y índice único
+    $pdo->exec("ALTER TABLE `pages` ADD COLUMN `slug` VARCHAR(255) NULL AFTER `contact_info`");
+    // Crear índice único si no existe
+    try {
+      $pdo->exec("ALTER TABLE `pages` ADD UNIQUE INDEX `idx_pages_slug` (`slug`(255))");
+    } catch (PDOException $idxEx) {
+      // índice puede fallar si ya existe; ignorar
+    }
+  }
+} catch (PDOException $e) {
+  // ignorar errores de verificación/alter
+}
+
+if ($method === 'POST') {
+  $input = json_decode(file_get_contents('php://input'), true);
+  $title = isset($input['title']) ? trim($input['title']) : '';
+  $content = isset($input['content']) ? trim($input['content']) : '';
+  $promo = isset($input['promo_message']) ? trim($input['promo_message']) : null;
+  $images = isset($input['images']) ? $input['images'] : [];
+  $categories = isset($input['categories']) ? $input['categories'] : [];
+  $section = isset($input['section_type']) ? $input['section_type'] : null;
+  $contact = isset($input['contact_info']) ? $input['contact_info'] : new stdClass();
+
+  if ($title === '') {
+    http_response_code(400);
+    echo json_encode(['error' => 'El título es requerido']);
+    exit;
+  }
+
+  try {
+    // Generar slug a partir del título
+    function make_slug($s) {
+      $s = mb_strtolower($s, 'UTF-8');
+      $s = preg_replace('/[^a-z0-9\s-]/u', '', $s);
+      $s = preg_replace('/[\s-]+/', '-', trim($s));
+      return $s;
+    }
+
+    $baseSlug = make_slug($title ?: 'page');
+    $slug = $baseSlug;
+    $i = 1;
+    // Asegurar unicidad
+    $check = $pdo->prepare('SELECT COUNT(*) AS c FROM pages WHERE slug = :slug');
+    while (true) {
+      $check->execute([':slug' => $slug]);
+      $count = (int)$check->fetch()['c'];
+      if ($count === 0) break;
+      $i++;
+      $slug = $baseSlug . '-' . $i;
+    }
+
+    $stmt = $pdo->prepare('INSERT INTO pages (title, content, promo_message, images, categories, section_type, contact_info, slug) VALUES (:title, :content, :promo, :images, :categories, :section, :contact, :slug)');
+    $stmt->execute([
+      ':title' => $title,
+      ':content' => $content,
+      ':promo' => $promo,
+      ':images' => json_encode($images),
+      ':categories' => json_encode($categories),
+      ':section' => $section,
+      ':contact' => json_encode($contact),
+      ':slug' => $slug,
+    ]);
+    $id = (int)$pdo->lastInsertId();
+    http_response_code(201);
+    echo json_encode(['id' => $id, 'title' => $title, 'content' => $content, 'promo_message' => $promo, 'images' => $images, 'categories' => $categories, 'section_type' => $section, 'contact_info' => $contact, 'slug' => $slug]);
+    exit;
+  } catch (PDOException $e) {
+    http_response_code(500);
+    echo json_encode(['error' => 'Insert failed', 'detail' => $e->getMessage()]);
+    exit;
+  }
+}
+
+if ($method === 'GET') {
+  try {
+    $stmt = $pdo->query('SELECT id, title, content, promo_message, images, categories, section_type, contact_info, created_at, slug FROM pages ORDER BY created_at DESC');
+    $pages = $stmt->fetchAll();
+    // Decodificar JSON fields
+    foreach ($pages as & $p) {
+      $p['images'] = $p['images'] ? json_decode($p['images'], true) : [];
+      $p['categories'] = $p['categories'] ? json_decode($p['categories'], true) : [];
+      $p['contact_info'] = $p['contact_info'] ? json_decode($p['contact_info'], true) : new stdClass();
+    }
+    echo json_encode(['pages' => $pages]);
+    exit;
+  } catch (PDOException $e) {
+    http_response_code(500);
+    echo json_encode(['error' => 'Query failed', 'detail' => $e->getMessage()]);
+    exit;
+  }
+}
+
+// Método no soportado
+http_response_code(405);
+echo json_encode(['error' => 'Method not allowed']);
+
+--- Archivo: backend/api/upload_images.php
+
+Contenido:
+
+<?php
+// backend/api/upload_images.php
+// Recibe archivos multipart y los guarda en backend/uploads/
+header('Access-Control-Allow-Origin: *');
+header('Access-Control-Allow-Methods: POST, OPTIONS');
+header('Access-Control-Allow-Headers: Content-Type');
+header('Content-Type: application/json');
+
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+  http_response_code(200);
+  exit;
+}
+
+$uploadDir = __DIR__ . '/../uploads';
+if (!is_dir($uploadDir)) {
+  mkdir($uploadDir, 0755, true);
+}
+
+$saved = [];
+foreach ($_FILES as $file) {
+  if (!is_array($file['name'])) {
+    $names = [$file['name']];
+    $tmps = [$file['tmp_name']];
+    $errs = [$file['error']];
+  } else {
+    $names = $file['name'];
+    $tmps = $file['tmp_name'];
+    $errs = $file['error'];
+  }
+  for ($i = 0; $i < count($names); $i++) {
+    if ($errs[$i] !== UPLOAD_ERR_OK) continue;
+    $orig = $names[$i];
+    $ext = pathinfo($orig, PATHINFO_EXTENSION);
+    $safe = bin2hex(random_bytes(8)) . ($ext ? ".$ext" : '');
+    $dest = $uploadDir . DIRECTORY_SEPARATOR . $safe;
+    if (move_uploaded_file($tmps[$i], $dest)) {
+      $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+      $host = $_SERVER['HTTP_HOST'];
+      $base = $scheme . '://' . $host;
+      $url = $base . '/LinkTiendas/Link%20Tienda/backend/uploads/' . $safe;
+      $saved[] = $url;
+    }
+  }
+}
+
+echo json_encode(['uploaded' => $saved]);
+
+--- Archivo: backend/page.php
+
+Contenido:
+
+<?php
+// backend/page.php
+// Muestra una página creada desde el panel de administración (parámetro ?id= o ?slug=)
+
+$id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
+$slug = isset($_GET['slug']) ? trim($_GET['slug']) : null;
+
+// Configuración de conexión
+$host = '127.0.0.1';
+$db   = 'link_tienda';
+$user = 'root';
+$pass = '';
+$charset = 'utf8mb4';
+
+$dsn = "mysql:host=$host;dbname=$db;charset=$charset";
+$options = [
+  PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+  PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+];
+
+try {
+  $pdo = new PDO($dsn, $user, $pass, $options);
+} catch (PDOException $e) {
+  http_response_code(500);
+  echo "Error de conexión a la base de datos.";
+  exit;
+}
+
+if ($slug) {
+  try {
+    $stmt = $pdo->prepare('SELECT id, title, content, created_at FROM pages WHERE slug = :slug');
+    $stmt->execute([':slug' => $slug]);
+    $page = $stmt->fetch();
+    if (!$page) {
+      http_response_code(404);
+      echo "Página no encontrada";
+      exit;
+    }
+  } catch (PDOException $e) {
+    http_response_code(500);
+    echo "Error al consultar la página";
+    exit;
+  }
+} else {
+  if ($id <= 0) {
+    http_response_code(400);
+    echo "ID inválido";
+    exit;
+  }
+
+  try {
+    $stmt = $pdo->prepare('SELECT id, title, content, created_at FROM pages WHERE id = :id');
+    $stmt->execute([':id' => $id]);
+    $page = $stmt->fetch();
+    if (!$page) {
+      http_response_code(404);
+      echo "Página no encontrada";
+      exit;
+    }
+  } catch (PDOException $e) {
+    http_response_code(500);
+    echo "Error al consultar la página";
+    exit;
+  }
+}
+
+$title = htmlspecialchars($page['title'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+$content = htmlspecialchars($page['content'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+$content = nl2br($content);
+
+?><!doctype html>
+<html>
+  <head>
+  <meta charset="utf-8">
+  <title><?php echo $title; ?></title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>body{font-family:Arial,Helvetica,sans-serif;padding:20px;max-width:800px;margin:auto}h1{font-size:24px}</style>
+  </head>
+  <body>
+  <h1><?php echo $title; ?></h1>
+  <div><?php echo $content; ?></div>
+  <p style="color:#666;font-size:12px;margin-top:20px">Creado: <?php echo $page['created_at']; ?></p>
+  </body>
+</html>
+
+--- Archivo: db/init.sql
+
+Contenido:
+
+-- Script de inicialización para XAMPP / phpMyAdmin
+CREATE DATABASE IF NOT EXISTS `link_tienda` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+USE `link_tienda`;
+
+CREATE TABLE IF NOT EXISTS `products` (
+  `id` INT NOT NULL AUTO_INCREMENT,
+  `name` VARCHAR(255) NOT NULL,
+  `price` DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+INSERT INTO `products` (`name`, `price`) VALUES
+('Camiseta', 19.90),
+('Pantalones', 39.50),
+('Gorra', 9.99);
+
+-- Tabla para páginas creadas desde el panel de administración
+CREATE TABLE IF NOT EXISTS `pages` (
+  `id` INT NOT NULL AUTO_INCREMENT,
+  `title` VARCHAR(255) NOT NULL,
+  `content` TEXT NOT NULL,
+  `promo_message` TEXT NULL,
+  `images` TEXT NULL,
+  `categories` TEXT NULL,
+  `slug` VARCHAR(255) NULL,
+  `section_type` VARCHAR(100) NULL,
+  `contact_info` TEXT NULL,
+  `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Ejemplo de página con campos extra
+INSERT INTO `pages` (`title`, `content`, `promo_message`, `images`, `categories`, `section_type`, `contact_info`, `slug`) VALUES
+('Página de ejemplo', 'Contenido de prueba para la página de ejemplo.', '5% off en compras mayores a $50', '[]', '[]', 'Ofertas destacadas', '{}', 'pagina-de-ejemplo');
+
+--- Archivo: frontend/index.html
+
+Contenido:
+
+<!doctype html>
+<html>
+  <head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Link Tienda</title>
+  </head>
+  <body>
+  <div id="root"></div>
+  <script type="module" src="./src/main.jsx"></script>
+  </body>
+</html>
+
+--- Archivo: frontend/package.json
+
+Contenido:
+
+{
+  "name": "link-tienda-frontend",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+  "dev": "vite",
+  "build": "vite build",
+  "preview": "vite preview"
+  },
+  "dependencies": {
+  "react": "^18.2.0",
+  "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+  "vite": "^5.0.0"
+  }
+}
+
+--- Archivo: frontend/src/App.jsx
+
+Contenido:
+
+import React, { useEffect, useState } from 'react'
+import Admin from './Admin'
+import PageViewer from './PageViewer'
+
+export default function App() {
+  const [pages, setPages] = useState([])
+
+  useEffect(() => {
+  async function load() {
+    try {
+    const res = await fetch('http://localhost/LinkTiendas/Link%20Tienda/backend/api/pages.php')
+    if (!res.ok) return
+    const data = await res.json()
+    setPages(data.pages || [])
+    } catch (e) {
+    // ignore
+    }
+  }
+  load()
+  }, [])
+
+  return (
+  <div style={{ padding: 20 }}>
+    <header style={{ marginBottom: 16 }}>
+    {pages.length > 0 ? (
+      <nav style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+      {pages.map((p) => (
+        <a
+        key={p.id}
+        href={`http://localhost/LinkTiendas/Link%20Tienda/backend/page.php?slug=${encodeURIComponent(p.slug)}`}
+        style={{ padding: '6px 10px', background: '#f0f0f0', borderRadius: 4, textDecoration: 'none', color: '#111' }}
+        target="_blank"
+        rel="noreferrer"
+        >
+        {p.title}
+        </a>
+      ))}
+      </nav>
+    ) : (
+      <div style={{ color: '#666' }}>No hay páginas creadas todavía.</div>
+    )}
+    </header>
+
+    <main>
+    <PageViewer />
+    <hr style={{ margin: '24px 0' }} />
+    <Admin />
+    </main>
+  </div>
+  )
+}
+
+--- Archivo: frontend/src/main.jsx
+
+Contenido:
+}
+
+--- frontend/src/main.jsx
+
+Contenido:
+
+import React from 'react'
+import { createRoot } from 'react-dom/client'
+import App from './App'
+import './styles.css'
+
+createRoot(document.getElementById('root')).render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>
+)
+
+--- frontend/src/styles.css
+
+Contenido:
+
+body { font-family: Arial, Helvetica, sans-serif; }
+
+FIN DEL ARCHIVO
+
+--- CAMBIOS DESDE LA CREACIÓN DE gpt.txt (25 de diciembre de 2025)
+
+Se agregan a continuación los archivos que se crearon o modificaron desde la última vez que se generó `gpt.txt`, con su contenido final.
+
+1) `backend/api/pages.php` (nuevo endpoint para gestionar páginas)
+
+Contenido:
+
+<?php
+// CORS: permitir requests desde el dev server y otros orígenes (ajustar según necesidad)
+header('Access-Control-Allow-Origin: *');
+header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
+header('Access-Control-Allow-Headers: Content-Type');
+header('Content-Type: application/json');
+
+$method = $_SERVER['REQUEST_METHOD'];
+
+// Responder preflight
+if ($method === 'OPTIONS') {
+    http_response_code(200);
+    exit;
+}
+
+// Configuración de conexión
+$host = '127.0.0.1';
+$db   = 'link_tienda';
+$user = 'root';
+$pass = '';
+$charset = 'utf8mb4';
+
+$dsn = "mysql:host=$host;dbname=$db;charset=$charset";
+$options = [
+    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+];
+
+// Conexión y creación de base/tablas si es necesario
+try {
+    $pdo = new PDO($dsn, $user, $pass, $options);
+} catch (PDOException $e) {
+    if ($e->getCode() == 1049) {
+        try {
+            $dsnNoDb = "mysql:host=$host;charset=$charset";
+            $pdoNoDb = new PDO($dsnNoDb, $user, $pass, $options);
+            $pdoNoDb->exec("CREATE DATABASE IF NOT EXISTS `$db` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
+            $pdoNoDb->exec("USE `$db`");
+            $pdoNoDb->exec("CREATE TABLE IF NOT EXISTS `pages` (
+                `id` INT NOT NULL AUTO_INCREMENT,
+                `title` VARCHAR(255) NOT NULL,
+                `content` TEXT NOT NULL,
+                `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (`id`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
+            $pdo = new PDO($dsn, $user, $pass, $options);
+        } catch (PDOException $e2) {
+            http_response_code(500);
+            echo json_encode(['error' => 'Failed to create database/table', 'detail' => $e2->getMessage()]);
+            exit;
+        }
+    } else {
+        http_response_code(500);
+        echo json_encode(['error' => 'Database connection failed', 'detail' => $e->getMessage()]);
+        exit;
+    }
+}
+
+// Asegurar que la tabla `pages` exista (evita SQLSTATE[42S02])
+try {
+    $pdo->exec("CREATE TABLE IF NOT EXISTS `pages` (
+        `id` INT NOT NULL AUTO_INCREMENT,
+        `title` VARCHAR(255) NOT NULL,
+        `content` TEXT NOT NULL,
+        `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (`id`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
+} catch (PDOException $e) {
+    // Si falla al crear la tabla, continuar y dejar que las consultas posteriores reporten el error
+}
+
+if ($method === 'POST') {
+    $input = json_decode(file_get_contents('php://input'), true);
+    $title = isset($input['title']) ? trim($input['title']) : '';
+    $content = isset($input['content']) ? trim($input['content']) : '';
+
+    if ($title === '') {
+        http_response_code(400);
+        echo json_encode(['error' => 'El título es requerido']);
+        exit;
+    }
+
+    try {
+        $stmt = $pdo->prepare('INSERT INTO pages (title, content) VALUES (:title, :content)');
+        $stmt->execute([':title' => $title, ':content' => $content]);
+        $id = (int)$pdo->lastInsertId();
+        http_response_code(201);
+        echo json_encode(['id' => $id, 'title' => $title, 'content' => $content]);
+        exit;
+    } catch (PDOException $e) {
+        http_response_code(500);
+        echo json_encode(['error' => 'Insert failed', 'detail' => $e->getMessage()]);
+        exit;
+    }
+}
+
+if ($method === 'GET') {
+    try {
+        $stmt = $pdo->query('SELECT id, title, content, created_at FROM pages ORDER BY created_at DESC');
+        $pages = $stmt->fetchAll();
+        echo json_encode(['pages' => $pages]);
+        exit;
+    } catch (PDOException $e) {
+        http_response_code(500);
+        echo json_encode(['error' => 'Query failed', 'detail' => $e->getMessage()]);
+        exit;
+    }
+}
+
+// Método no soportado
+http_response_code(405);
+echo json_encode(['error' => 'Method not allowed']);
+
+2) `db/init.sql` (actualizado: tabla `pages` y ejemplo)
+
+Contenido:
+
+-- Script de inicialización para XAMPP / phpMyAdmin
+CREATE DATABASE IF NOT EXISTS `link_tienda` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+USE `link_tienda`;
+
+CREATE TABLE IF NOT EXISTS `products` (
+  `id` INT NOT NULL AUTO_INCREMENT,
+  `name` VARCHAR(255) NOT NULL,
+  `price` DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+INSERT INTO `products` (`name`, `price`) VALUES
+('Camiseta', 19.90),
+('Pantalones', 39.50),
+('Gorra', 9.99);
+
+-- Tabla para páginas creadas desde el panel de administración
+CREATE TABLE IF NOT EXISTS `pages` (
+  `id` INT NOT NULL AUTO_INCREMENT,
+  `title` VARCHAR(255) NOT NULL,
+  `content` TEXT NOT NULL,
+  `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Ejemplo de página
+INSERT INTO `pages` (`title`, `content`) VALUES
+('Página de ejemplo', 'Contenido de prueba para la página de ejemplo.');
+
+3) `frontend/src/Admin.jsx` (formulario mínimo actualizado a URL absoluta)
+
+Contenido:
+
+import React, { useState } from 'react'
+
+export default function Admin() {
+  const [title, setTitle] = useState('')
+  const [content, setContent] = useState('')
+  const [msg, setMsg] = useState('')
+
+  async function handleSubmit(e) {
+    e.preventDefault()
+    setMsg('Enviando...')
+    try {
+      const res = await fetch('http://localhost/LinkTiendas/Link%20Tienda/backend/api/pages.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, content }),
+      })
+      const data = await res.json()
+      if (res.ok) {
+        setMsg('Página creada')
+        setTitle('')
+        setContent('')
+      } else {
+        setMsg(data.error || 'Error')
+      }
+    } catch (err) {
+      setMsg('Error de red')
+    }
+  }
+
+  return (
+    <section style={{ padding: 16 }}>
+      <h2>Admin — Crear página</h2>
+      <form onSubmit={handleSubmit}>
+        <div style={{ marginBottom: 8 }}>
+          <input
+            placeholder="Título"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            style={{ width: '100%', padding: 8 }}
+          />
+        </div>
+        <div style={{ marginBottom: 8 }}>
+          <textarea
+            placeholder="Contenido"
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            rows={6}
+            style={{ width: '100%', padding: 8 }}
+          />
+        </div>
+        <div>
+          <button type="submit">Enviar</button>
+        </div>
+        {msg && <p style={{ marginTop: 8 }}>{msg}</p>}
+      </form>
+    </section>
+  )
+}
+
+4) `frontend/src/App.jsx` (sección superior con botones que enlazan a páginas creadas)
+
+Contenido:
+
+import React, { useEffect, useState } from 'react'
+import Admin from './Admin'
+
+export default function App() {
+  const [pages, setPages] = useState([])
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const res = await fetch('http://localhost/LinkTiendas/Link%20Tienda/backend/api/pages.php')
+        if (!res.ok) return
+        const data = await res.json()
+        setPages(data.pages || [])
+      } catch (e) {
+        // ignore
+      }
+    }
+    load()
+  }, [])
+
+  return (
+    <div style={{ padding: 20 }}>
+      <header style={{ marginBottom: 16 }}>
+        {pages.length > 0 ? (
+          <nav style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {pages.map((p) => (
+              <a
+                key={p.id}
+                href={`http://localhost/LinkTiendas/Link%20Tienda/backend/page.php?id=${encodeURIComponent(p.id)}`}
+                style={{ padding: '6px 10px', background: '#f0f0f0', borderRadius: 4, textDecoration: 'none', color: '#111' }}
+                target="_blank"
+                rel="noreferrer"
+              >
+                {p.title}
+              </a>
+            ))}
+          </nav>
+        ) : (
+          <div style={{ color: '#666' }}>No hay páginas creadas todavía.</div>
+        )}
+      </header>
+
+      <main>
+        <h1>Link Tienda - Frontend</h1>
+        <p>React + PHP (XAMPP) - ejemplo inicial</p>
+        <Admin />
+      </main>
+    </div>
+  )
+}
+
+5) `backend/page.php` (visor de página individual)
+
+Contenido:
+
+<?php
+// backend/page.php
+// Muestra una página creada desde el panel de administración (parámetro ?id=)
+
+$id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
+
+// Configuración de conexión
+$host = '127.0.0.1';
+$db   = 'link_tienda';
+$user = 'root';
+$pass = '';
+$charset = 'utf8mb4';
+
+$dsn = "mysql:host=$host;dbname=$db;charset=$charset";
+$options = [
+    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+];
+
+try {
+    $pdo = new PDO($dsn, $user, $pass, $options);
+} catch (PDOException $e) {
+    http_response_code(500);
+    echo "Error de conexión a la base de datos.";
+    exit;
+}
+
+if ($id <= 0) {
+    http_response_code(400);
+    echo "ID inválido";
+    exit;
+}
+
+try {
+    $stmt = $pdo->prepare('SELECT id, title, content, created_at FROM pages WHERE id = :id');
+    $stmt->execute([':id' => $id]);
+    $page = $stmt->fetch();
+    if (!$page) {
+        http_response_code(404);
+        echo "Página no encontrada";
+        exit;
+    }
+} catch (PDOException $e) {
+    http_response_code(500);
+    echo "Error al consultar la página";
+    exit;
+}
+
+$title = htmlspecialchars($page['title'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+$content = htmlspecialchars($page['content'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+$content = nl2br($content);
+
+?><!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title><?php echo $title; ?></title>
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <style>body{font-family:Arial,Helvetica,sans-serif;padding:20px;max-width:800px;margin:auto}h1{font-size:24px}</style>
+  </head>
+  <body>
+    <h1><?php echo $title; ?></h1>
+    <div><?php echo $content; ?></div>
+    <p style="color:#666;font-size:12px;margin-top:20px">Creado: <?php echo $page['created_at']; ?></p>
+  </body>
+</html>
+
+FIN DEL ARCHIVO
