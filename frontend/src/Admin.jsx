@@ -1,18 +1,23 @@
 import React, { useState, useEffect } from 'react'
 import AdminLayout from './components/admin/AdminLayout'
 import ModifyPages from './components/admin/ModifyPages'
+import ManagePage from './components/admin/ManagePage'
+import * as api from './components/admin/adminApi'
 
 export default function Admin() {
   // estado para el formulario de creación (mantengo la implementación previa)
   const [title, setTitle] = useState('')
-  const [content, setContent] = useState('')
   const [promo, setPromo] = useState('')
   const [images, setImages] = useState([])
   const [categories, setCategories] = useState([])
   const [catInput, setCatInput] = useState('')
-  const [sectionType, setSectionType] = useState('Ofertas destacadas')
+  const [sections, setSections] = useState([]) // array of { type: 'offers'|'category', value: 'Hogar' }
+  const [pageType, setPageType] = useState('Producto')
+  const [openTime, setOpenTime] = useState('')
+  const [closeTime, setCloseTime] = useState('')
   const [contact, setContact] = useState({ whatsapp: '', address: '', instagram: '', store_name: '' })
   const [msg, setMsg] = useState('')
+  const [logoFile, setLogoFile] = useState(null)
   const [hash, setHash] = useState(typeof window !== 'undefined' ? window.location.hash : '')
 
   useEffect(() => {
@@ -22,6 +27,10 @@ export default function Admin() {
   }, [])
 
   function handleFiles(e) { setImages(Array.from(e.target.files)) }
+  function handleLogoFile(e){ setLogoFile(e.target.files && e.target.files[0] ? e.target.files[0] : null) }
+  function addSection() { setSections(s=>[...s,{ value: 'Ofertas destacadas' }]) }
+  function updateSection(idx, val) { setSections(s=>{ const copy = [...s]; copy[idx] = { value: val }; return copy }) }
+  function removeSection(idx) { setSections(s=>{ const copy = [...s]; copy.splice(idx,1); return copy }) }
   function addCategory() { const v = catInput.trim(); if (v && !categories.includes(v)) { setCategories([...categories, v]); setCatInput('') } }
   function removeCategory(idx) { const copy = categories.slice(); copy.splice(idx,1); setCategories(copy) }
 
@@ -37,23 +46,38 @@ export default function Admin() {
     e.preventDefault(); setMsg('Enviando...')
     try {
       const uploaded = await uploadImages()
-      const payload = { title, content, promo_message: promo, images: uploaded, categories, section_type: sectionType, contact_info: contact }
+      const payload = { title, promo_message: promo, images: uploaded, categories, sections_json: sections, page_type: pageType, open_time: openTime || null, close_time: closeTime || null, contact_info: contact }
       const res = await fetch('http://localhost/LinkTiendas/Link%20Tienda/backend/api/pages.php',{ method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify(payload) })
       const data = await res.json()
       if (res.ok) {
+        const newId = data.id
+        // If logo selected, upload after creation
+        if (logoFile && newId) {
+          try {
+            const upl = await api.uploadLogo(newId, logoFile)
+            if (upl && upl.ok) {
+              // update logo_url on server already performed by upload endpoint
+            }
+          } catch(e) {
+            console.warn('Logo upload failed', e)
+          }
+        }
         setMsg('Página creada')
-        setTitle(''); setContent(''); setPromo(''); setImages([]); setCategories([]); setContact({ whatsapp:'', address:'', instagram:'', store_name:'' })
+        setTitle(''); setPromo(''); setImages([]); setCategories([]); setContact({ whatsapp:'', address:'', instagram:'', store_name:'' }); setPageType('Producto'); setOpenTime(''); setCloseTime(''); setSections([]); setLogoFile(null)
       } else setMsg(data.error || 'Error')
     } catch(err) { setMsg('Error de red o subida') }
   }
 
   // si el hash indica modificar contenido, mostrar ModifyPages dentro del layout
   const showModify = hash === '#modificar-contenido'
+  const showManage = hash === '#gestion' || hash === '#gestion-inventario'
 
   return (
     <AdminLayout>
       {showModify ? (
         <ModifyPages />
+      ) : showManage ? (
+        <ManagePage />
       ) : (
         <section id="crear-paginas" style={{ padding: 16 }}>
           <h2>Admin — Crear página</h2>
@@ -86,21 +110,47 @@ export default function Admin() {
             </div>
 
             <div style={{ marginBottom: 8 }}>
-              <label>Tipo de sección</label>
+              <label>Secciones de Home</label>
+              <div style={{ marginTop: 6 }}>
+                {sections.map((s, i) => (
+                  <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 6 }}>
+                    <select value={s.value} onChange={e => updateSection(i, e.target.value)}>
+                      <option>Ofertas destacadas</option>
+                      {categories.map((c, idx) => (<option key={idx}>{c}</option>))}
+                    </select>
+                    <button type="button" onClick={() => removeSection(i)}>Eliminar sección</button>
+                  </div>
+                ))}
+                <div>
+                  <button type="button" onClick={addSection}>Agregar sección nueva</button>
+                </div>
+              </div>
+            </div>
+
+            <div style={{ marginBottom: 8 }}>
+              <label>Logo de la página (opcional)</label>
               <br />
-              <select value={sectionType} onChange={(e) => setSectionType(e.target.value)}>
-                <option>Ofertas destacadas</option>
-                <option>Hogar</option>
-                <option>Ropa</option>
-                <option>Electrónica</option>
+              <input type="file" accept="image/png,image/jpeg,image/webp" onChange={handleLogoFile} />
+              {logoFile && <div style={{ marginTop: 6 }}>{logoFile.name}</div>}
+            </div>
+
+            <div style={{ marginBottom: 8 }}>
+              <label>Tipo de página</label>
+              <br />
+              <select value={pageType} onChange={(e) => setPageType(e.target.value)}>
+                <option>Producto</option>
+                <option>Servicio</option>
               </select>
             </div>
 
             <div style={{ marginBottom: 8 }}>
-              <label>Contenido</label>
+              <label>Horario de atención</label>
               <br />
-              <textarea placeholder="Contenido" value={content} onChange={(e) => setContent(e.target.value)} rows={6} style={{ width: '100%', padding: 8 }} />
+              <input type="time" value={openTime} onChange={(e) => setOpenTime(e.target.value)} style={{ marginRight: 8 }} />
+              <input type="time" value={closeTime} onChange={(e) => setCloseTime(e.target.value)} />
             </div>
+
+            {/* Contenido eliminado del formulario de creación */}
 
             <fieldset style={{ marginBottom: 8 }}>
               <legend>Información de contacto (footer)</legend>

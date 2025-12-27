@@ -507,3 +507,49 @@ body { font-family: Arial, Helvetica, sans-serif; }
 --- Fin del volcado ---
 
 (Archivo generado automáticamente con el contenido leido en el workspace.)
+
+--- Registro de sesión: cambios aplicados por el asistente durante esta interacción ---
+
+Resumen de acciones realizadas y su impacto:
+
+- Soporte de `page_type` (Producto/Servicio): se añadió UI y persistencia para distinguir páginas que muestran inventario (productos) de páginas que ofrecen servicios (turnos/reservas).
+  Impacto: cambia la lógica de admin y la vista pública; `ManagePage` decide qué manager mostrar (`InventoryManager` vs `ServicesManager`).
+
+- Backend: nuevos y extendidos endpoints
+  - `backend/api/inventory.php` — gestiona `page_products` con columnas `category`, `on_sale`, `sale_price`, `featured`. Soporta create/update/delete y GET por `page_id` y `id`.
+  - `backend/api/services.php` — gestiona `page_services`, ahora con `category` y soporte CRUD.
+  - `backend/api/availability.php` — gestiona `service_turns` (turnos), valida solapamientos y respeta horarios de atención (`open_time`/`close_time`).
+  - `backend/api/reservations.php` — gestiona `service_reservations`; añade control de capacidad por turno, evita solapamientos por servicio y expone GET para listar reservas por `page_id`, `service_id`, `date`.
+  - `backend/api/upload_logo.php` — subida de logos; guarda en `backend/uploads/` y actualiza `pages.logo_url`.
+
+- Frontend: cambios principales
+  - `frontend/src/components/admin/adminApi.js`: central HTTP client con nuevos helpers (`getProduct`, `getService`, `createReservation`, `getReservations`, `uploadLogo`, etc.).
+  - `InventoryManager.jsx` y `ServicesManager.jsx`: ahora reciben `categoryOptions` desde `ManagePage` y envían `category` al backend al crear/editar.
+  - `ServiceDetail.jsx`: vista pública de servicio con selección de fecha; carga turnos, genera slots cuando no hay turnos explícitos, consulta reservas y marca/deshabilita horarios ocupados (botón rojo, no seleccionable).
+  - `App.jsx` y enrutamiento: se migró a `react-router`, con rutas limpias `/:storeSlug`, `/:storeSlug/service/:serviceId`, `/:storeSlug/product/:productId`.
+
+- Migraciones y seguridad
+  - Los endpoints intentan crear tablas y columnas faltantes con sentencias `CREATE TABLE IF NOT EXISTS` y `ALTER TABLE` protegidos, lo que facilita pruebas pero debe revisarse antes de producción.
+  - CORS está abierto (`*`) y credenciales DB están en claro — mover a configuración segura para producción.
+
+Problemas diagnosticados y correcciones aplicadas:
+- El frontend no mostraba horarios porque la UI cargaba la `page` y el `service` con asíncronía; se añadió efecto para recargar slots cuando `page` y `date` estén listos.
+- Las reservas no actualizaban la UI inmediatamente: ahora tras una reserva exitosa la UI recarga slots y reservas.
+- Inicialmente las comprobaciones de solapamiento en reservas bloqueaban por página (cualquier reserva en la página bloqueaba otros servicios); se ajustó para comparar por `service_id` (solo reservas del mismo servicio bloquean).
+
+Pruebas sugeridas (paso a paso):
+1. Entra al admin y crea una página de tipo `Servicio` con `open_time` y `close_time` y al menos un `service` con `duration_minutes`.
+2. En `Availability` crea un `turn` con `capacity` (p. ej. 2) para la fecha de prueba.
+3. En la vista pública, selecciona la fecha y confirma que:
+   - aparecen botones de horarios generados o desde `service_turns`;
+   - si hay reservas, los horarios aparecen en rojo y no son seleccionables;
+   - al reservar, la UI recarga y marca el slot ocupado (contador y color).
+
+Notas finales y próximos pasos posibles:
+- Puedo eliminar las salidas de depuración que añadimos (`debugResp`, `reservedMap` visibles) cuando confirmes que todo funciona.
+- Puedo añadir un tooltip con nombres de reserva o una ventana modal que muestre detalles de las reservas por horario.
+- Puedo consolidar la lógica de generación de slots en el backend (`availability.php`) si prefieres centralizar reglas y facilitar clientes ligeros.
+
+Si querés, hago commit de este `chatgpt.txt` actualizado en un branch `docs/chatgpt-dump` y preparo un resumen en `README.md` más breve. Indica si querés que proceda con el commit. 
+
+--- Fin del registro de sesión ---

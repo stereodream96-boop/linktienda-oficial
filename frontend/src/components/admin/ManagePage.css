@@ -1,0 +1,8 @@
+.manage-root{padding:12px}
+.manage-top{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+.manage-top input{flex:1;padding:6px}
+.manage-body{margin-top:12px}
+.selected-card{border:1px solid #eee;padding:12px;border-radius:6px}
+.managers{margin-top:12px}
+.no-select{color:#666;padding:20px}
+.results{color:#666}

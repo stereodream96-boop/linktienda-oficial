@@ -61,6 +61,11 @@ try {
                 `images` TEXT NULL,
                 `categories` TEXT NULL,
                 `section_type` VARCHAR(100) NULL,
+                `page_type` VARCHAR(50) NULL,
+                `open_time` TIME NULL,
+                `close_time` TIME NULL,
+                `sections_json` TEXT NULL,
+                `logo_url` TEXT NULL,
                 `contact_info` TEXT NULL,
                 `slug` VARCHAR(255) NULL,
                 `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -89,6 +94,11 @@ try {
         `images` TEXT NULL,
         `categories` TEXT NULL,
         `section_type` VARCHAR(100) NULL,
+        `page_type` VARCHAR(50) NULL,
+        `open_time` TIME NULL,
+        `close_time` TIME NULL,
+        `sections_json` TEXT NULL,
+        `logo_url` TEXT NULL,
         `contact_info` TEXT NULL,
         `slug` VARCHAR(255) NULL,
         `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -106,6 +116,27 @@ try {
     if ($has === 0) {
         // agregar columna y índice único
         $pdo->exec("ALTER TABLE `pages` ADD COLUMN `slug` VARCHAR(255) NULL AFTER `contact_info`");
+            // intentar agregar page_type, open_time y close_time si no existen
+            try {
+                $pdo->exec("ALTER TABLE `pages` ADD COLUMN `page_type` VARCHAR(50) NULL AFTER `section_type`");
+            } catch (PDOException $e2) {
+            }
+            try {
+                $pdo->exec("ALTER TABLE `pages` ADD COLUMN `open_time` TIME NULL AFTER `page_type`");
+            } catch (PDOException $e3) {
+            }
+            try {
+                $pdo->exec("ALTER TABLE `pages` ADD COLUMN `close_time` TIME NULL AFTER `open_time`");
+            } catch (PDOException $e4) {
+            }
+            try {
+                $pdo->exec("ALTER TABLE `pages` ADD COLUMN `sections_json` TEXT NULL AFTER `close_time`");
+            } catch (PDOException $e5) {
+            }
+            try {
+                $pdo->exec("ALTER TABLE `pages` ADD COLUMN `logo_url` TEXT NULL AFTER `sections_json`");
+            } catch (PDOException $e6) {
+            }
         // Crear índice único si no existe
         try {
             $pdo->exec("ALTER TABLE `pages` ADD UNIQUE INDEX `idx_pages_slug` (`slug`(255))");
@@ -157,7 +188,7 @@ if ($method === 'POST') {
         };
 
         // Campos permitidos para actualizar
-        $allowed = ['title','content','promo_message','images','categories','section_type','contact_info','slug'];
+        $allowed = ['title','content','promo_message','images','categories','section_type','page_type','open_time','close_time','sections_json','logo_url','contact_info','slug'];
 
         // Filtrar payload: quitar id y campos vacíos
         $updates = [];
@@ -172,12 +203,26 @@ if ($method === 'POST') {
             exit;
         }
 
+        // Si vienen ambos horarios, validar lógica: open_time < close_time
+        if (array_key_exists('open_time', $updates) && array_key_exists('close_time', $updates)) {
+            $ot = $updates['open_time'];
+            $ct = $updates['close_time'];
+            if ($ot !== null && $ct !== null && trim($ot) !== '' && trim($ct) !== '') {
+                $t1 = strtotime($ot);
+                $t2 = strtotime($ct);
+                if ($t1 === false || $t2 === false || $t1 >= $t2) {
+                    echo json_encode(['ok' => false, 'message' => 'Horario inválido']);
+                    exit;
+                }
+            }
+        }
+
         // Preparar SET dinámico
         $sets = [];
         $params = [];
         foreach ($updates as $k => $v) {
-            if (in_array($k, ['images','categories','contact_info'])) {
-                // Guardar como JSON
+            if (in_array($k, ['images','categories','contact_info','sections_json'])) {
+                // Guardar como JSON/text
                 if (is_array($v)) $val = json_encode($v);
                 else $val = is_string($v) ? $v : json_encode($v);
                 $sets[] = "`$k` = :$k";
@@ -211,6 +256,11 @@ if ($method === 'POST') {
     $images = isset($input['images']) ? $input['images'] : [];
     $categories = isset($input['categories']) ? $input['categories'] : [];
     $section = isset($input['section_type']) ? $input['section_type'] : null;
+    $page_type = isset($input['page_type']) ? $input['page_type'] : null;
+    $open_time = isset($input['open_time']) ? (trim($input['open_time']) === '' ? null : $input['open_time']) : null;
+    $close_time = isset($input['close_time']) ? (trim($input['close_time']) === '' ? null : $input['close_time']) : null;
+    $sections_json = isset($input['sections_json']) ? $input['sections_json'] : null;
+    $logo_url = isset($input['logo_url']) ? $input['logo_url'] : null;
     $contact = isset($input['contact_info']) ? $input['contact_info'] : new stdClass();
 
     if ($title === '') {
@@ -241,7 +291,18 @@ if ($method === 'POST') {
             $slug = $baseSlug . '-' . $i;
         }
 
-        $stmt = $pdo->prepare('INSERT INTO pages (title, content, promo_message, images, categories, section_type, contact_info, slug) VALUES (:title, :content, :promo, :images, :categories, :section, :contact, :slug)');
+        // validar horarios si ambos vienen
+        if ($open_time !== null && $close_time !== null) {
+            $t1 = strtotime($open_time);
+            $t2 = strtotime($close_time);
+            if ($t1 === false || $t2 === false || $t1 >= $t2) {
+                http_response_code(400);
+                echo json_encode(['ok' => false, 'message' => 'Horario inválido']);
+                exit;
+            }
+        }
+
+        $stmt = $pdo->prepare('INSERT INTO pages (title, content, promo_message, images, categories, section_type, page_type, open_time, close_time, sections_json, logo_url, contact_info, slug) VALUES (:title, :content, :promo, :images, :categories, :section, :page_type, :open_time, :close_time, :sections_json, :logo_url, :contact, :slug)');
         $stmt->execute([
             ':title' => $title,
             ':content' => $content,
@@ -249,12 +310,17 @@ if ($method === 'POST') {
             ':images' => json_encode($images),
             ':categories' => json_encode($categories),
             ':section' => $section,
+            ':page_type' => $page_type,
+            ':open_time' => $open_time,
+            ':close_time' => $close_time,
+            ':sections_json' => is_array($sections_json) ? json_encode($sections_json) : ($sections_json === null ? null : $sections_json),
+            ':logo_url' => $logo_url,
             ':contact' => json_encode($contact),
             ':slug' => $slug,
         ]);
         $id = (int)$pdo->lastInsertId();
         http_response_code(201);
-        echo json_encode(['id' => $id, 'title' => $title, 'content' => $content, 'promo_message' => $promo, 'images' => $images, 'categories' => $categories, 'section_type' => $section, 'contact_info' => $contact, 'slug' => $slug]);
+        echo json_encode(['id' => $id, 'title' => $title, 'content' => $content, 'promo_message' => $promo, 'images' => $images, 'categories' => $categories, 'section_type' => $section, 'page_type' => $page_type, 'open_time' => $open_time, 'close_time' => $close_time, 'sections_json' => is_array($sections_json) ? $sections_json : ($sections_json ? json_decode($sections_json, true) : null), 'logo_url' => $logo_url, 'contact_info' => $contact, 'slug' => $slug]);
         exit;
     } catch (PDOException $e) {
         http_response_code(500);
@@ -268,7 +334,7 @@ if ($method === 'GET') {
         // Soporta consulta por slug: /api/pages.php?slug=valor
         if (isset($_GET['slug']) && trim($_GET['slug']) !== '') {
             $slugParam = trim($_GET['slug']);
-            $stmt = $pdo->prepare('SELECT id, title, content, promo_message, images, categories, section_type, contact_info, created_at, slug FROM pages WHERE slug = :slug LIMIT 1');
+            $stmt = $pdo->prepare('SELECT id, title, content, promo_message, images, categories, section_type, page_type, open_time, close_time, sections_json, logo_url, contact_info, created_at, slug FROM pages WHERE slug = :slug LIMIT 1');
             $stmt->execute([':slug' => $slugParam]);
             $p = $stmt->fetch();
             if (!$p) {
@@ -278,17 +344,21 @@ if ($method === 'GET') {
             }
             $p['images'] = $p['images'] ? json_decode($p['images'], true) : [];
             $p['categories'] = $p['categories'] ? json_decode($p['categories'], true) : [];
+            $p['sections_json'] = $p['sections_json'] ? (is_string($p['sections_json']) ? json_decode($p['sections_json'], true) : $p['sections_json']) : null;
+            $p['logo_url'] = $p['logo_url'] ?: null;
             $p['contact_info'] = $p['contact_info'] ? json_decode($p['contact_info'], true) : new stdClass();
             echo json_encode(['page' => $p]);
             exit;
         }
 
-        $stmt = $pdo->query('SELECT id, title, content, promo_message, images, categories, section_type, contact_info, created_at, slug FROM pages ORDER BY created_at DESC');
+        $stmt = $pdo->query('SELECT id, title, content, promo_message, images, categories, section_type, page_type, open_time, close_time, sections_json, logo_url, contact_info, created_at, slug FROM pages ORDER BY created_at DESC');
         $pages = $stmt->fetchAll();
         // Decodificar JSON fields
         foreach ($pages as & $p) {
             $p['images'] = $p['images'] ? json_decode($p['images'], true) : [];
             $p['categories'] = $p['categories'] ? json_decode($p['categories'], true) : [];
+            $p['sections_json'] = $p['sections_json'] ? (is_string($p['sections_json']) ? json_decode($p['sections_json'], true) : $p['sections_json']) : null;
+            $p['logo_url'] = $p['logo_url'] ?: null;
             $p['contact_info'] = $p['contact_info'] ? json_decode($p['contact_info'], true) : new stdClass();
         }
         echo json_encode(['pages' => $pages]);

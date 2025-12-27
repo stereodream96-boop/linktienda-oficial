@@ -19,7 +19,7 @@ export default function AdminAside() {
         <li><a href="#admin-home">Inicio</a></li>
         <li><a href="#crear-paginas">Crear Páginas</a></li>
         <li><a href="#modificar-contenido">Modificar Contenido</a></li>
-        <li><a href="#gestion-inventario">Gestión de Inventario</a></li>
+        <li><a href="#gestion">Gestión</a></li>
         <li><a href="#estadisticas">Estadísticas</a></li>
         <li><a href="#configuracion">Configuración</a></li>
       </ul>

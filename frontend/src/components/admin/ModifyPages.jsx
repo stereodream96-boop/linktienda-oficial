@@ -1,12 +1,13 @@
 import React, { useMemo, useState, useEffect } from 'react'
 import PagesCarousel from './PagesCarousel'
 import './ModifyPages.css'
+import * as api from './adminApi'
 
 // Mock pages data
 const mockPages = [
-  { id: 1, title: 'Página A', content: '<p>Contenido A</p>', promo_message: 'Promo A', images: [], categories: ['cat1'], section_type: 'Ofertas', contact_info: { whatsapp: '549112233' }, slug: 'pagina-a' },
-  { id: 2, title: 'Página B', content: '<p>Contenido B</p>', promo_message: 'Promo B', images: [], categories: ['cat2'], section_type: 'Ropa', contact_info: {}, slug: 'pagina-b' },
-  { id: 3, title: 'Página C', content: '<p>Contenido C</p>', promo_message: '', images: [], categories: [], section_type: 'Hogar', contact_info: {}, slug: 'pagina-c' },
+  { id: 1, title: 'Página A', content: '<p>Contenido A</p>', promo_message: 'Promo A', images: [], categories: ['cat1'], section_type: 'Ofertas', page_type: 'Producto', contact_info: { whatsapp: '549112233' }, slug: 'pagina-a' },
+  { id: 2, title: 'Página B', content: '<p>Contenido B</p>', promo_message: 'Promo B', images: [], categories: ['cat2'], section_type: 'Ropa', page_type: 'Servicio', contact_info: {}, slug: 'pagina-b' },
+  { id: 3, title: 'Página C', content: '<p>Contenido C</p>', promo_message: '', images: [], categories: [], section_type: 'Hogar', page_type: 'Producto', contact_info: {}, slug: 'pagina-c' },
 ]
 
 export default function ModifyPages() {
@@ -25,7 +26,17 @@ export default function ModifyPages() {
   useEffect(() => {
     if (selectedId == null) return
     const p = pages.find(x => x.id === selectedId)
-    if (p) setForm({ ...p, categories: (p.categories || []).join(', '), images: Array.isArray(p.images) ? p.images : [] })
+    if (p) {
+      // normalize categories to an array to avoid .map errors in the UI
+      let cats = []
+      if (Array.isArray(p.categories)) cats = p.categories
+      else if (typeof p.categories === 'string') {
+        const parsed = tryParseJSON(p.categories)
+        if (Array.isArray(parsed)) cats = parsed
+        else cats = p.categories.split(',').map(s => s.trim()).filter(Boolean)
+      }
+      setForm({ ...p, categories: cats, images: Array.isArray(p.images) ? p.images : [], pageType: p.page_type || p.pageType || 'Producto', open_time: p.open_time || '', close_time: p.close_time || '', sections: p.sections_json || [], logo_url: p.logo_url || null })
+    }
   }, [selectedId, pages])
 
   // Fetch pages from backend on mount
@@ -78,6 +89,24 @@ export default function ModifyPages() {
     }
   }
 
+  async function handleLogoFiles(e){
+    const f = e.target.files && e.target.files[0]
+    if (!f || !form) return
+    try {
+      const data = await api.uploadLogo(form.id, f)
+      if (data && data.ok) {
+        setForm(prev => ({ ...prev, logo_url: data.logo_url }))
+        setMsg('Logo subido')
+        // refresh pages list
+        await fetchPages()
+      } else {
+        setMsg(data && data.message ? data.message : 'Error al subir logo')
+      }
+    } catch (e) {
+      console.error(e); setMsg('Error de red al subir logo')
+    }
+  }
+
   async function handleImageFiles(e) {
     const files = e.target.files
     const urls = await uploadImagesLocal(files)
@@ -96,7 +125,7 @@ export default function ModifyPages() {
     // Build payload: include id and only fields that changed and are non-empty
     const original = pages.find(p => p.id === form.id) || {}
     const payload = { id: form.id }
-    const allowed = ['title','content','promo_message','images','categories','section_type','contact_info','slug']
+    const allowed = ['title','promo_message','images','categories','section_type','sections_json','logo_url','open_time','close_time','contact_info','slug']
 
     for (const key of allowed) {
       const newVal = form[key]
@@ -135,6 +164,17 @@ export default function ModifyPages() {
         if (JSON.stringify(newVal) !== JSON.stringify(origVal)) payload[key] = newVal
       }
     }
+    // Map sections UI -> sections_json payload if changed
+    if (form.sections) {
+      const newSections = Array.isArray(form.sections) ? form.sections.map(s => (typeof s === 'string' ? s : (s.value || ''))) : []
+      const origSections = Array.isArray(original.sections_json) ? original.sections_json : (original.sections || [])
+      if (JSON.stringify(newSections) !== JSON.stringify(origSections)) payload['sections_json'] = newSections
+    }
+
+    // Map UI `pageType` -> backend `page_type` if changed
+    const newPageType = form.pageType || form.page_type || null
+    const origPageType = original.page_type || original.pageType || null
+    if (newPageType && newPageType !== origPageType) payload['page_type'] = newPageType
 
     // If no fields to update, show message and skip server call
     const keys = Object.keys(payload).filter(k => k !== 'id')
@@ -199,11 +239,7 @@ export default function ModifyPages() {
               <input placeholder="Ingresá tu nuevo título" value={form.title} onChange={e => handleFormChange('title', e.target.value)} />
             </div>
 
-            <div className="field">
-              <label>Contenido</label>
-              <div className="actual">Actual: (ver abajo)</div>
-              <textarea placeholder="Ingresá el nuevo contenido" rows={6} value={form.content} onChange={e => handleFormChange('content', e.target.value)} />
-            </div>
+            {/* `content` eliminado según petición: no editar contenido desde panel */}
 
             <div className="field">
               <label>Imágenes</label>
@@ -234,14 +270,48 @@ export default function ModifyPages() {
             </div>
 
             <div className="field">
-              <label>Tipo de sección</label>
-              <div className="actual">Actual: {form.section_type}</div>
-              <select value={form.section_type} onChange={e => handleFormChange('section_type', e.target.value)}>
-                <option>Ofertas</option>
-                <option>Hogar</option>
-                <option>Ropa</option>
-                <option>Electrónica</option>
+              <label>Secciones de Home</label>
+              <div className="actual">Actual: {(form.sections || []).map(s=>s.value || s).join(' | ')}</div>
+              <div style={{ marginTop: 6 }}>
+                {(form.sections || []).map((s, i) => (
+                  <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 6 }}>
+                    <select value={s.value || s} onChange={e => handleFormChange('sections', (form.sections || []).map((x,idx)=> idx===i ? { value: e.target.value } : x ))}>
+                      <option>Ofertas destacadas</option>
+                      { (form.categories || []).map((c,idx)=>(<option key={idx}>{c}</option>)) }
+                    </select>
+                    <button type="button" onClick={() => handleFormChange('sections', (form.sections || []).filter((_,idx)=>idx!==i))}>Eliminar sección</button>
+                  </div>
+                ))}
+                <div>
+                  <button type="button" onClick={() => handleFormChange('sections', [...(form.sections||[]), { value: 'Ofertas destacadas' }])}>Agregar sección nueva</button>
+                </div>
+              </div>
+            </div>
+
+            <div className="field">
+              <label>Logo</label>
+              <div className="actual">{form.logo_url ? <img src={form.logo_url} alt="logo" style={{ maxHeight: 80 }} /> : 'Sin logo'}</div>
+              <div style={{ marginTop: 8 }}>
+                <input type="file" accept="image/png,image/jpeg,image/webp" onChange={handleLogoFiles} />
+              </div>
+            </div>
+
+            <div className="field">
+              <label>Tipo de página</label>
+              <div className="actual">Actual: {form.pageType || form.page_type}</div>
+              <select value={form.pageType || ''} onChange={e => handleFormChange('pageType', e.target.value)}>
+                <option>Producto</option>
+                <option>Servicio</option>
               </select>
+            </div>
+
+            <div className="field">
+              <label>Horario de atención</label>
+              <div className="actual">Actual: {form.open_time || ''} - {form.close_time || ''}</div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <input type="time" value={form.open_time || ''} onChange={e => handleFormChange('open_time', e.target.value)} />
+                <input type="time" value={form.close_time || ''} onChange={e => handleFormChange('close_time', e.target.value)} />
+              </div>
             </div>
 
             <div style={{ marginTop: 12 }}>
