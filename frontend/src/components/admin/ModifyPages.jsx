@@ -27,15 +27,20 @@ export default function ModifyPages() {
     if (selectedId == null) return
     const p = pages.find(x => x.id === selectedId)
     if (p) {
-      // normalize categories to an array to avoid .map errors in the UI
+      // normalize categories to array of objects {name,image_url}
       let cats = []
-      if (Array.isArray(p.categories)) cats = p.categories
-      else if (typeof p.categories === 'string') {
+      if (Array.isArray(p.categories)) {
+        if (p.categories.length > 0 && typeof p.categories[0] === 'string') {
+          cats = p.categories.map(n => ({ name: n, image_url: null }))
+        } else {
+          cats = p.categories.map(c => (typeof c === 'string' ? { name: c, image_url: null } : { name: c.name || '', image_url: c.image_url || null }))
+        }
+      } else if (typeof p.categories === 'string') {
         const parsed = tryParseJSON(p.categories)
-        if (Array.isArray(parsed)) cats = parsed
-        else cats = p.categories.split(',').map(s => s.trim()).filter(Boolean)
+        if (Array.isArray(parsed)) cats = parsed.map(c => (typeof c === 'string' ? { name: c, image_url: null } : { name: c.name || '', image_url: c.image_url || null }))
+        else cats = p.categories.split(',').map(s => ({ name: s.trim(), image_url: null })).filter(Boolean)
       }
-      setForm({ ...p, categories: cats, images: Array.isArray(p.images) ? p.images : [], pageType: p.page_type || p.pageType || 'Producto', open_time: p.open_time || '', close_time: p.close_time || '', sections: p.sections_json || [], logo_url: p.logo_url || null })
+      setForm({ ...p, categories: cats, images: Array.isArray(p.images) ? p.images : [], pageType: p.page_type || p.pageType || 'Producto', open_time: p.open_time || '', close_time: p.close_time || '', sections: p.sections_json || [], logo_url: p.logo_url || null, cover_url: p.cover_url || null, newCategoryName: '' })
     }
   }, [selectedId, pages])
 
@@ -57,6 +62,8 @@ export default function ModifyPages() {
         images: p.images ? (Array.isArray(p.images) ? p.images : tryParseJSON(p.images) || []) : [],
         categories: p.categories ? (Array.isArray(p.categories) ? p.categories : tryParseJSON(p.categories) || []) : [],
         contact_info: p.contact_info ? (typeof p.contact_info === 'object' ? p.contact_info : tryParseJSON(p.contact_info) || {}) : {},
+        logo_url: p.logo_url || null,
+        cover_url: p.cover_url || null,
       }))
       setPages(serverPages)
     } catch (e) {
@@ -86,6 +93,16 @@ export default function ModifyPages() {
     } catch (e) {
       console.error('upload error', e)
       return []
+    }
+  }
+  async function handleCoverFiles(e){
+    const files = e.target.files
+    if (!files || files.length === 0) return
+    const urls = await uploadImagesLocal(files)
+    if (urls && urls.length > 0) {
+      setForm(prev => ({ ...prev, cover_url: urls[0] }))
+      setMsg('Cover subido')
+      await fetchPages()
     }
   }
 
@@ -125,7 +142,7 @@ export default function ModifyPages() {
     // Build payload: include id and only fields that changed and are non-empty
     const original = pages.find(p => p.id === form.id) || {}
     const payload = { id: form.id }
-    const allowed = ['title','promo_message','images','categories','section_type','sections_json','logo_url','open_time','close_time','contact_info','slug']
+    const allowed = ['title','promo_message','images','categories','section_type','sections_json','logo_url','cover_url','open_time','close_time','contact_info','slug']
 
     for (const key of allowed) {
       const newVal = form[key]
@@ -219,6 +236,31 @@ export default function ModifyPages() {
     try { return JSON.parse(str) } catch(e) { return null }
   }
 
+  const getCats = (val) => {
+    if (Array.isArray(val)) {
+      if (val.length === 0) return []
+      // if array of strings
+      if (typeof val[0] === 'string') return val
+      // if array of objects {name,image_url}
+      return val.map(c => (c && c.name) ? c.name : '')
+    }
+    if (typeof val === 'string') {
+      const parsed = tryParseJSON(val)
+      if (Array.isArray(parsed)) return parsed
+      return val.split(',').map(s => s.trim()).filter(Boolean)
+    }
+    return []
+  }
+
+  function resolvePublicUrl(u){
+    if (!u) return null
+    if (/^https?:\/\//.test(u)) return u
+    // backend files are served from Apache at http://localhost/LinkTiendas/Link%20Tienda
+    const base = 'http://localhost/LinkTiendas/Link%20Tienda'
+    if (u.startsWith('/')) return base + u
+    return base + '/' + u
+  }
+
   return (
     <div className="modify-pages-root">
       <div className="modify-top">
@@ -242,12 +284,12 @@ export default function ModifyPages() {
             {/* `content` eliminado según petición: no editar contenido desde panel */}
 
             <div className="field">
-              <label>Imágenes</label>
+              <label>Hero</label>
               <div className="actual">Actual:</div>
               <div className="image-list">
                 {(form.images || []).map((src, i) => (
                   <div className="image-item" key={i}>
-                    <img src={src} alt={`img-${i}`} />
+                    <img src={resolvePublicUrl(src)} alt={`img-${i}`} />
                     <button type="button" className="img-remove" onClick={() => removeImage(i)}>✕</button>
                   </div>
                 ))}
@@ -265,8 +307,47 @@ export default function ModifyPages() {
 
             <div className="field">
               <label>Categorías</label>
-              <div className="actual">Actual: {(form.categories || '').toString()}</div>
-              <input placeholder="cat1, cat2" value={form.categories} onChange={e => handleFormChange('categories', e.target.value)} />
+              <div className="actual">Actual: {getCats(form && form.categories).join(', ')}</div>
+              <div style={{ marginTop: 8 }}>
+                <input placeholder="Nueva categoría" value={form.newCategoryName || ''} onChange={e => handleFormChange('newCategoryName', e.target.value)} />
+                <button type="button" onClick={() => {
+                  const name = (form.newCategoryName || '').trim()
+                  if (!name) return
+                  // avoid duplicates (case-insensitive)
+                  const existing = (form.categories || []).some(c => (c.name || '').toLowerCase() === name.toLowerCase())
+                  if (existing) { setMsg('Categoría existente'); return }
+                  const updated = [...(form.categories || []), { name, image_url: null }]
+                  setForm(prev => ({ ...prev, categories: updated, newCategoryName: '' }))
+                }} style={{ marginLeft: 8 }}>Agregar</button>
+              </div>
+              <div style={{ marginTop: 10 }}>
+                {(form.categories || []).map((c, idx) => (
+                  <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                    {c.image_url ? <img src={resolvePublicUrl(c.image_url)} alt={c.name} style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 6 }} /> : <div style={{ width: 48, height: 48, background: '#eee', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#999' }}>No img</div>}
+                    <div style={{ flex: 1 }}>{c.name}</div>
+                    <input style={{ display: 'none' }} id={`catfile-${idx}`} type="file" accept="image/png,image/jpeg,image/webp" onChange={async (e) => {
+                      const f = e.target.files && e.target.files[0]
+                      if (!f) return
+                      setMsg('Subiendo...')
+                      try {
+                        const data = await api.uploadCategoryImage(form.id, c.name, f)
+                        if (data && data.ok) {
+                          // update form categories
+                          const cats = (form.categories || []).map(x => ((x.name||'').toLowerCase() === (c.name||'').toLowerCase()) ? data.category : x)
+                          setForm(prev => ({ ...prev, categories: cats }))
+                          setMsg('Imagen de categoría subida')
+                        } else {
+                          setMsg(data && data.message ? data.message : 'Error al subir imagen')
+                        }
+                      } catch (err) { console.error(err); setMsg('Error de red') }
+                    }} />
+                    <label htmlFor={`catfile-${idx}`} style={{ cursor: 'pointer', padding: '6px 8px', background: '#f5f5f5', borderRadius: 6 }}>{c.image_url ? 'Cambiar imagen' : 'Agregar imagen'}</label>
+                    <button type="button" onClick={() => {
+                      const copy = (form.categories || []).slice(); copy.splice(idx,1); setForm(prev => ({ ...prev, categories: copy }))
+                    }}>Eliminar</button>
+                  </div>
+                ))}
+              </div>
             </div>
 
             <div className="field">
@@ -277,7 +358,10 @@ export default function ModifyPages() {
                   <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 6 }}>
                     <select value={s.value || s} onChange={e => handleFormChange('sections', (form.sections || []).map((x,idx)=> idx===i ? { value: e.target.value } : x ))}>
                       <option>Ofertas destacadas</option>
-                      { (form.categories || []).map((c,idx)=>(<option key={idx}>{c}</option>)) }
+                      { getCats(form && form.categories).map((c,idx)=>{
+                        const label = typeof c === 'string' ? c : (c && c.name ? c.name : '')
+                        return (<option key={idx} value={label}>{label}</option>)
+                      }) }
                     </select>
                     <button type="button" onClick={() => handleFormChange('sections', (form.sections || []).filter((_,idx)=>idx!==i))}>Eliminar sección</button>
                   </div>
@@ -290,11 +374,13 @@ export default function ModifyPages() {
 
             <div className="field">
               <label>Logo</label>
-              <div className="actual">{form.logo_url ? <img src={form.logo_url} alt="logo" style={{ maxHeight: 80 }} /> : 'Sin logo'}</div>
+              <div className="actual">{form.logo_url ? <img src={resolvePublicUrl(form.logo_url)} alt="logo" style={{ maxHeight: 80 }} /> : 'Sin logo'}</div>
               <div style={{ marginTop: 8 }}>
                 <input type="file" accept="image/png,image/jpeg,image/webp" onChange={handleLogoFiles} />
               </div>
             </div>
+
+            {/* Cover / Hero removed: use 'Hero' images above as page hero */}
 
             <div className="field">
               <label>Tipo de página</label>

@@ -6,3 +6,43 @@
 .managers{margin-top:12px}
 .no-select{color:#666;padding:20px}
 .results{color:#666}
+
+/* Services manager table tweaks */
+.admin-services-table { width: 100%; border-collapse: collapse; }
+.admin-services-table th, .admin-services-table td { padding: 12px 8px; vertical-align: middle; border-top: 1px solid #eee; }
+.admin-services-table thead th { text-align: left; font-weight: 700; }
+.svc-thumbs { display: flex; gap: 8px; align-items: center; }
+.svc-thumb-wrap { position: relative; width: 56px; height: 56px; }
+.svc-thumb { width: 56px; height: 56px; object-fit: cover; border-radius: 6px; display: block; }
+.svc-thumb-remove { position: absolute; right: -6px; top: -6px; background: #fff; border: 1px solid #ddd; border-radius: 12px; width: 20px; height: 20px; padding: 0; cursor: pointer; }
+.svc-actions { display: inline-flex; flex-direction: column; gap: 8px; align-items: stretch; }
+.vc-actions-placeholder {}
+.svc-actions > div:first-child { display: flex; gap: 8px; }
+.svc-actions button, .svc-actions label { margin: 0; }
+.svc-actions .btn-upload { width: 100%; box-sizing: border-box; text-align: center }
+.admin-services-table tr td .btn { margin-right: 6px }
+
+/* Button styles used in ServicesManager */
+.btn { padding: 6px 10px; border-radius: 6px; cursor: pointer; font-size: 14px; display: inline-block; text-decoration: none; vertical-align: middle }
+.btn-primary { background: #2a9d8f; color: #fff; border: none; }
+.btn-primary:hover { background: #248a76; }
+.btn-ghost { background: #fff; color: #2a9d8f; border: 1px solid #2a9d8f; }
+.btn-ghost:hover { background: #eefbf9; }
+.btn-danger { background: #fff; color: #c55; border: 1px solid #f2a0a0; }
+.btn-danger:hover { background: #fff6f6; }
+.btn-secondary { background: #f5f5f5; color: #333; border: 1px solid #ddd; }
+.btn-secondary:hover { background: #eee; }
+.btn-upload { background: #f5f5f5; border: 1px solid #ddd; color: #333; padding: 6px 10px; border-radius: 6px; font-size: 14px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; text-decoration: none; vertical-align: middle; line-height: 1; }
+.btn-upload:hover { background: #eee; }
+
+/* small link-like toggle for descriptions */
+.desc-toggle { margin-left: 8px; background: none; border: none; color: #06c; cursor: pointer; padding: 0; font-size: 13px }
+.desc-toggle:hover { text-decoration: underline; }
+
+/* Ensure the create form inputs are compact */
+.admin-services-table input[type="text"], .admin-services-table input[type="number"] { max-width: 160px }
+
+@media (max-width: 900px) {
+	.svc-thumb-wrap { width: 44px; height: 44px }
+	.svc-thumb { width: 44px; height: 44px }
+}

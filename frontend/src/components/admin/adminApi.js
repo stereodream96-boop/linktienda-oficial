@@ -3,9 +3,21 @@ const BASE = 'http://localhost/LinkTiendas/Link%20Tienda/backend/api'
 async function request(url, opts = {}){
   try{
     const res = await fetch(url, opts)
-    const data = await res.json()
+    // read raw text (use clone to avoid consuming body for downstream json())
+    const raw = await res.clone().text()
+    let data = null
+    try {
+      data = raw && raw.length ? JSON.parse(raw) : null
+    } catch (err) {
+      // fallback: attempt res.json() if parse from raw failed
+      try { data = await res.json() } catch (e2) { data = null }
+    }
+    // debug: verbose logging removed for production; keep conditional hook if needed
+    // If you want to enable logging during development, uncomment the next line:
+    // console.debug('[adminApi]', url, 'status', res.status, 'raw:', raw, 'parsed:', data)
     return data
   }catch(e){
+    console.error('[adminApi] Network error for', url, e)
     throw new Error('Network error')
   }
 }
@@ -21,6 +33,31 @@ export async function deleteProduct(id){ return request(`${BASE}/inventory.php?a
 export async function uploadLogo(pageId, file){
   const fd = new FormData(); fd.append('page_id', pageId); fd.append('logo', file);
   const res = await fetch(`${BASE}/upload_logo.php`, { method: 'POST', body: fd });
+  try { return await res.json() } catch(e) { throw new Error('Network error') }
+}
+
+export async function uploadCategoryImage(pageId, categoryName, file){
+  const fd = new FormData(); fd.append('page_id', pageId); fd.append('category_name', categoryName); fd.append('image', file);
+  const res = await fetch(`${BASE}/upload_category_image.php`, { method: 'POST', body: fd });
+  try { return await res.json() } catch(e) { throw new Error('Network error') }
+}
+
+export async function uploadImages(files){
+  const fd = new FormData();
+  for (let i=0;i<files.length;i++) fd.append('images[]', files[i]);
+  const res = await fetch(`${BASE}/upload_images.php`, { method: 'POST', body: fd });
+  try { return await res.json() } catch(e) { throw new Error('Network error') }
+}
+
+export async function uploadServiceImage(serviceId, file){
+  const fd = new FormData(); fd.append('service_id', serviceId); fd.append('image', file);
+  const res = await fetch(`${BASE}/upload_service_image.php`, { method: 'POST', body: fd });
+  try { return await res.json() } catch(e) { throw new Error('Network error') }
+}
+
+export async function deleteServiceImage(serviceId, imageUrl){
+  const fd = new FormData(); fd.append('service_id', serviceId); fd.append('image_url', imageUrl);
+  const res = await fetch(`${BASE}/delete_service_image.php`, { method: 'POST', body: fd });
   try { return await res.json() } catch(e) { throw new Error('Network error') }
 }
 

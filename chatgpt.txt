@@ -1,402 +1,643 @@
-Proyecto: Link Tienda — Volcado completo para IA
-Fecha: 25 de diciembre de 2025
+Proyecto: Link Tienda — Resumen y volcado de archivos
+Fecha: 27 de diciembre de 2025
 
-Objetivo:
-- Proveer un archivo único (`chatgpt.txt`) que contenga el contenido íntegro de los archivos principales del proyecto, su ubicación relativa en el repo, una breve descripción de qué hace cada archivo y cómo interactúan entre sí. Pensado para pasarle a otra IA para que entienda el proyecto.
+Objetivo
+- Documentar los cambios recientes y volcar en este fichero (`chatgpt.txt`) el contenido de los archivos clave editados en el frontend.
 
-Estructura del proyecto (raíz relativa a la carpeta del workspace):
-- gpt.txt
-- Local to web.md
-- README.md
-- backend/
-  - echo.php
-  - index.php
-  - page.php
-  - test.php
-  - api/
-    - db_info.php
-    - pages.php
-    - products.php
-    - upload_images.php
-  - uploads/  (carpeta para archivos subidos)
-- db/
-  - init.sql
-- frontend/
-  - index.html
-  - package.json
-  - src/
-    - Admin.jsx
-    - App.jsx
-    - main.jsx
-    - PageViewer.jsx
-    - styles.css
+Resumen de cambios recientes
+- Eliminé renderizados de debug visibles en la vista pública (números, badges y `<pre>` con JSON).
+- Limpié `StoreHeader` para que muestre únicamente el logo y el nombre de la tienda (prioriza `contact.store_name`, evita slugs numéricos).
+- Moví el `<header>` para que sea hermano de `.public-container` y eliminé el `<h1>` que aparecía dentro del header.
+- Añadí estilos de layout tipo tarjetas (`.card`, `.card-grid`) y definí `body { margin: 0 }` para evitar espacios no deseados.
+- Normalicé la lógica de rutas de imágenes (`logo_url`) para aceptar rutas relativas devueltas por el backend.
 
-Resumen funcional:
-- Backend PHP: carpeta `backend` que expone endpoints JSON en `backend/api/` (productos, páginas, subida de imágenes, diagnóstico) y vistas HTML públicas en `backend/page.php` y `backend/echo.php`.
-- Base de datos: MySQL (script en `db/init.sql`) con las tablas `products` y `pages`.
-- Frontend: aplicación React (Vite) en `frontend` que consume la API de `backend/api/pages.php` y `backend/api/products.php` y permite crear páginas desde `Admin.jsx`.
+Archivos clave y contenidos (copias tomadas del workspace en este momento)
 
-Interacciones principales:
-- `frontend` realiza fetchs a `http://localhost/LinkTiendas/Link%20Tienda/backend/api/pages.php` para listar/crear páginas.
-- Al crear páginas, `frontend/src/Admin.jsx` puede subir imágenes a `backend/api/upload_images.php`, que guarda archivos en `backend/uploads/` y devuelve URLs públicas.
-- `backend/api/pages.php` gestiona la persistencia en la tabla `pages` y genera `slug` único; `backend/page.php` muestra la página pública por `id` o `slug`.
-- `backend/api/products.php` sirve productos desde la tabla `products` y crea la base/tablas si no existen.
+--- `frontend/src/PageViewer.jsx` ---
 
---- Archivos y contenido ---
+(Contenido completo)
 
-File: gpt.txt
-Description: Archivo de volcado/documentación previa (texto explicativo y lista de archivos). Contiene un resumen general y copia de varios archivos.
-Content:
+import React, { useEffect, useState } from 'react'
+import * as api from './components/admin/adminApi'
+import { Link } from 'react-router-dom'
+import StoreHeader from './components/public/StoreHeader'
 
-(Ver contenido integrado en el repo; se mantiene un archivo similar llamado gpt.txt en la raíz.)
+export default function PageViewer({ slug = null }) {
+  // PageViewer ahora solo maneja la home pública de la tienda: /:storeSlug
+  // `slug` viene desde el wrapper de rutas en App.jsx
+  const [page, setPage] = useState(null)
+  const [imgIndex, setImgIndex] = useState(0)
+  const [sections, setSections] = useState([])
+  const [sectionProducts, setSectionProducts] = useState({})
+  const [sectionLoading, setSectionLoading] = useState({})
+  const [sectionError, setSectionError] = useState({})
+  const [services, setServices] = useState([])
+  const [searchTerm, setSearchTerm] = useState('')
 
-----------------------------------------
-File: Local to web.md
-Path: Local to web.md
-Description: Guía de migración del entorno local (XAMPP) a un hosting: pasos para respaldos, export/import SQL, configurar DB, CORS, SSL, permisos y deploy.
-Content:
-
-# Local to web — Guía de migración
-
-Este instructivo explica, paso a paso, cómo mover tu proyecto desde `localhost` (entorno local con XAMPP) a un servidor web (hosting) en producción.
-
-Contenido rápido:
-- Respaldos (archivos + base de datos)
-- Exportar / importar la base de datos
-- Cambios en la configuración (datos de conexión)
-- Subida de archivos (FTP/SFTP / Git / panel)
-- Ajustes del frontend y CORS
-- Seguridad, permisos y SSL
-- Pruebas y verificación
-
-(El archivo incluye comandos de ejemplo `mysqldump`, recomendaciones para `config.php` y pasos de prueba post-migración.)
-
-----------------------------------------
-File: README.md
-Path: README.md
-Description: README del proyecto con instrucciones de puesta en marcha local: dónde colocar `backend`, cómo importar `db/init.sql`, y comandos `npm` para el frontend.
-Content excerpt:
-
-Link Tienda
-
-Proyecto minimal: frontend con React (Vite) y backend en PHP. Base de datos para usar con XAMPP (phpMyAdmin).
-
-Pasos rápidos:
-- Backend: copiar la carpeta `backend` dentro de `C:\xampp\htdocs\` o configurar un virtual host apuntando a la carpeta.
-- Base de datos: importar `db/init.sql` en phpMyAdmin (o ejecutar el script desde la línea de comandos MySQL).
-- Frontend: abrir `frontend` en terminal y ejecutar:
-
-cd frontend
-npm install
-npm run dev
-
-Credenciales por defecto (en los scripts PHP): host `127.0.0.1`, usuario `root`, contraseña vacía, BD `link_tienda`.
-
-----------------------------------------
-File: backend/echo.php
-Path: backend/echo.php
-Description: Endpoint de prueba para verificar que PHP sirve páginas correctamente. Recibe `?msg=` y lo muestra escapado en HTML.
-Content:
-
-<?php
-// backend/echo.php
-// Simple echo endpoint for testing in browser. Use ?msg=TuTexto
-$msg = isset($_GET['msg']) ? $_GET['msg'] : 'Echo desde Link Tienda';
-// Sanitize for HTML
-$safe = htmlspecialchars($msg, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
-?><!doctype html>
-<html>
-  <head>
-    <meta charset="utf-8">
-    <title>Echo</title>
-    <style>body{font-family:Arial;margin:20px}</style>
-  </head>
-  <body>
-    <h1><?php echo $safe; ?></h1>
-    <p>URL de prueba: <code>?msg=Tu%20mensaje</code></p>
-  </body>
-</html>
-
-----------------------------------------
-File: backend/index.php
-Path: backend/index.php
-Description: Punto de entrada simple que actúa como router mínimo; en /api/products incluye `api/products.php`, por defecto devuelve JSON con mensaje raíz.
-Content:
-
-<?php
-header('Access-Control-Allow-Origin: *');
-header('Content-Type: application/json');
-
-$uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
-if (strpos($uri, '/api/products') !== false) {
-    require __DIR__ . '/api/products.php';
-    exit;
-}
-
-echo json_encode(['message' => 'API raíz - Link Tienda']);
-
-----------------------------------------
-File: backend/test.php
-Path: backend/test.php
-Description: Endpoint de diagnóstico que devuelve JSON con información del entorno PHP para debugging.
-Content:
-
-<?php
-// Archivo de prueba: devuelve JSON con información básica para depuración
-header('Content-Type: application/json');
-$info = [
-    'ok' => true,
-    'request_uri' => isset($_SERVER['REQUEST_URI']) ? $_SERVER['REQUEST_URI'] : null,
-    'script_name' => isset($_SERVER['SCRIPT_NAME']) ? $_SERVER['SCRIPT_NAME'] : null,
-    'php_version' => phpversion(),
-    'sapi' => php_sapi_name(),
-];
-echo json_encode($info);
-
-----------------------------------------
-File: backend/api/db_info.php
-Path: backend/api/db_info.php
-Description: Endpoint diagnóstico que prueba la conexión a la base de datos, lista columnas de `pages` y cuenta filas. Útil para debugging remoto.
-Content:
-
-<?php
-// backend/api/db_info.php
-// Endpoint de diagnóstico: prueba conexión a la DB y lista columnas de la tabla `pages`.
-header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: GET, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type');
-header('Content-Type: application/json');
-
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    http_response_code(200);
-    exit;
-}
-
-$host = '127.0.0.1';
-$db   = 'link_tienda';
-$user = 'root';
-$pass = '';
-$charset = 'utf8mb4';
-
-$dsn = "mysql:host=$host;dbname=$db;charset=$charset";
-$options = [
-    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-];
-
-$out = ['ok' => false, 'time' => date('c')];
-try {
-    $pdo = new PDO($dsn, $user, $pass, $options);
-    $out['ok'] = true;
-    $out['msg'] = 'Connected';
-
-    // listar columnas
-    $stmt = $pdo->prepare("SELECT COLUMN_NAME, DATA_TYPE, COLUMN_DEFAULT, IS_NULLABLE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = :db AND TABLE_NAME = 'pages'");
-    $stmt->execute([':db' => $db]);
-    $cols = $stmt->fetchAll();
-    $out['columns'] = $cols;
-
-    // contar filas
-    try {
-        $cnt = $pdo->query('SELECT COUNT(*) AS c FROM pages')->fetch()['c'];
-        $out['pages_count'] = (int)$cnt;
-    } catch (Exception $e) {
-        $out['pages_count_error'] = $e->getMessage();
+  useEffect(() => {
+    async function load() {
+      try {
+        if (slug) {
+          const res = await fetch('http://localhost/LinkTiendas/Link%20Tienda/backend/api/pages.php?slug=' + encodeURIComponent(slug))
+          if (!res.ok) { setPage(null); return }
+          const data = await res.json()
+          setPage(data.page || null)
+        } else {
+          const res = await fetch('http://localhost/LinkTiendas/Link%20Tienda/backend/api/pages.php')
+          if (!res.ok) return
+          const data = await res.json()
+          setPage((data.pages && data.pages[0]) || null)
+        }
+      } catch (e) { }
     }
-} catch (PDOException $e) {
-    http_response_code(500);
-    $out['error'] = $e->getMessage();
+    load()
+  }, [slug])
+
+  useEffect(() => {
+    if (!page) return
+    let secs = []
+    if (page.sections_json) {
+      if (typeof page.sections_json === 'string') {
+        try { secs = JSON.parse(page.sections_json) } catch (e) { secs = [] }
+      } else if (Array.isArray(page.sections_json)) secs = page.sections_json
+    }
+    setSections(secs || [])
+
+    if (page.page_type && page.page_type.toLowerCase().includes('serv')) {
+      (async () => {
+        try {
+          const data = await api.getServices(page.id)
+          if (data && data.ok) setServices(data.services || [])
+        } catch (e) { }
+      })()
+    }
+  }, [page])
+
+  useEffect(() => {
+    if (!page || !page.id) return
+    if (!sections || sections.length === 0) return
+    sections.forEach((sec, idx) => {
+      const key = idx
+      if (sectionProducts[key] && Array.isArray(sectionProducts[key])) return
+      let url = `http://localhost/LinkTiendas/Link%20Tienda/backend/api/inventory.php?page_id=${page.id}`
+      const val = (typeof sec === 'string') ? sec : (sec.value || '')
+      const vLower = (val || '').toLowerCase()
+      if (vLower.includes('oferta') || vLower.includes('ofertas') || vLower.includes('destac')) {
+        url += '&filter=offers'
+      } else if (vLower.startsWith('category:')) {
+        const cat = val.split(':').slice(1).join(':').trim()
+        url += `&filter=category&category=${encodeURIComponent(cat)}`
+      } else {
+        const cats = Array.isArray(page.categories) ? page.categories : []
+        if (cats.includes(val)) {
+          url += `&filter=category&category=${encodeURIComponent(val)}`
+        } else {
+          url += `&filter=category&category=${encodeURIComponent(val)}`
+        }
+      }
+
+      setSectionLoading(s => ({ ...s, [key]: true }))
+      fetch(url).then(r => r.json()).then(data => {
+        if (data && data.ok) {
+          setSectionProducts(sp => ({ ...sp, [key]: data.products || [] }))
+          setSectionError(se => ({ ...se, [key]: null }))
+        } else {
+          setSectionProducts(sp => ({ ...sp, [key]: [] }))
+          setSectionError(se => ({ ...se, [key]: data && data.message ? data.message : 'Error cargando productos' }))
+        }
+      }).catch(err => {
+        setSectionProducts(sp => ({ ...sp, [key]: [] }))
+        setSectionError(se => ({ ...se, [key]: 'Error de red' }))
+      }).finally(() => setSectionLoading(s => ({ ...s, [key]: false })))
+    })
+  }, [sections, page])
+
+  if (!page) return <div style={{ padding: 20 }}>Cargando contenido...</div>
+
+  const imgs = Array.isArray(page.images) ? page.images : []
+  const cats = Array.isArray(page.categories) ? page.categories : []
+  const contact = page.contact_info || {}
+
+  function prevImg() { setImgIndex((i) => (i - 1 + imgs.length) % imgs.length) }
+  function nextImg() { setImgIndex((i) => (i + 1) % imgs.length) }
+
+  return (
+    <>
+      <header>
+        <StoreHeader page={page} storeSlug={slug} onSearch={setSearchTerm} />
+      </header>
+
+      <div className="public-container">
+        {imgs && imgs.length > 0 && (
+          <div style={{ position: 'relative', marginBottom: 12 }}>
+            <img src={imgs[imgIndex]} alt="hero" style={{ width: '100%', height: 300, objectFit: 'cover', borderRadius: 6 }} />
+            <button onClick={prevImg} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)' }}>{'‹'}</button>
+            <button onClick={nextImg} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)' }}>{'›'}</button>
+          </div>
+        )}
+
+        <div style={{ marginBottom: 12 }}>
+        {cats.length > 0 ? (
+          cats.map((c, i) => (
+            <button key={i} onClick={() => {}} style={{ marginRight: 8, marginBottom: 8, padding: '6px 10px', background: '#f5f5f5' }}>{c}</button>
+          ))
+        ) : (
+          <div style={{ color: '#666' }}>Sin categorías</div>
+        )}
+      </div>
+
+      {page.page_type && page.page_type.toLowerCase().includes('serv') ? (
+        <section style={{ marginBottom: 20 }}>
+          <h3>Página de servicios</h3>
+          {services.length === 0 ? <div>No hay servicios publicados.</div> : (
+            <div className="card-grid services-grid">
+              {services.filter(s => {
+                if (!searchTerm) return true
+                const q = searchTerm.toLowerCase()
+                return (s.name && s.name.toLowerCase().includes(q)) || (s.description && s.description.toLowerCase().includes(q))
+              }).map(s => {
+                const to = `/${page.slug || page.id}/service/${s.id}`
+                return (
+                  <Link key={s.id} to={to} target="_blank" rel="noreferrer" style={{ textDecoration: 'none', color: 'inherit' }}>
+                    <div className="card">
+                      <div className="card-title">{s.name}</div>
+                      <div className="card-meta">{s.duration_minutes} min - ${s.price}</div>
+                    </div>
+                  </Link>
+                )
+              })}
+            </div>
+          )}
+        </section>
+      ) : (
+        sections.map((sec, idx) => {
+          const key = idx
+          const val = (typeof sec === 'string') ? sec : (sec.value || '')
+          const title = sec.title || val || `Sección ${idx+1}`
+          const items = sectionProducts[key] || []
+          const loading = !!sectionLoading[key]
+          const error = sectionError[key]
+          return (
+            <section key={key} style={{ marginBottom: 20 }}>
+              <h3>{title}</h3>
+              {loading ? <div>Cargando productos...</div> : error ? <div style={{ color: '#c55' }}>Error cargando productos</div> : (
+                items.length === 0 ? <div style={{ color: '#666' }}>No hay productos para mostrar.</div> : (
+                  <div className="card-grid">
+                    {items.filter(p => {
+                      if (!searchTerm) return true
+                      const q = searchTerm.toLowerCase()
+                      return (p.name && p.name.toLowerCase().includes(q)) || (p.category && p.category.toLowerCase().includes(q))
+                    }).map(p => {
+                      const to = `/${page.slug || page.id}/product/${p.id}`
+                      return (
+                        <Link key={p.id} to={to} target="_blank" rel="noreferrer" style={{ textDecoration: 'none', color: 'inherit' }}>
+                          <div className="card">
+                            <div className="card-title">{p.name}</div>
+                            <div className="card-meta">{p.on_sale && p.sale_price ? (
+                              <span><span style={{ textDecoration: 'line-through', marginRight: 6 }}>${p.price}</span><strong>${p.sale_price}</strong></span>
+                            ) : (<span>${p.price}</span>)}</div>
+                            <div className="card-labels">
+                              {p.on_sale ? <span style={{ marginRight: 8, color: '#c55' }}>Oferta</span> : null}
+                              {p.featured ? <span style={{ marginRight: 8, color: '#2a9d8f' }}>Destacado</span> : null}
+                              {p.category ? <span style={{ marginRight: 8 }}>{p.category}</span> : null}
+                            </div>
+                          </div>
+                        </Link>
+                      )
+                    })}
+                  </div>
+                )
+              )}
+            </section>
+          )
+        })
+      )}
+
+      <article style={{ marginBottom: 30 }} dangerouslySetInnerHTML={{ __html: page.content }} />
+
+      <footer style={{ borderTop: '1px solid #eee', paddingTop: 12 }}>
+        <div style={{ fontWeight: 'bold' }}>{contact.store_name || ''}</div>
+        <div style={{ marginTop: 6 }}>
+          {contact.whatsapp && <div>WhatsApp: <a href={`https://wa.me/${contact.whatsapp}`}>{contact.whatsapp}</a></div>}
+          {contact.address && <div>Dirección: {contact.address}</div>}
+          {contact.instagram && <div>Instagram: <a href={`https://instagram.com/${contact.instagram.replace(/^@/, '')}`}>{contact.instagram}</a></div>}
+        </div>
+      </footer>
+      </div>
+    </>
+  )
 }
 
-echo json_encode($out, JSON_PRETTY_PRINT);
+--- `frontend/src/components/public/StoreHeader.jsx` ---
 
-----------------------------------------
-File: backend/api/pages.php
-Path: backend/api/pages.php
-Description: API REST mínima para `pages`. Soporta GET (listado o por slug) y POST (creación). Maneja CORS, crea BD/tabla si no existen, genera `slug` único y guarda campos adicionales (promo_message, images, categories, section_type, contact_info). Devuelve JSON.
-Content:
+(Contenido completo)
 
-<?php
-// backend/api/pages.php
-// API de administración (JSON) — este endpoint gestiona la creación/listado
-// de páginas desde el panel de administración.
-ini_set('display_errors', '1');
-ini_set('display_startup_errors', '1');
-error_reporting(E_ALL);
-set_exception_handler(function($e){
-    http_response_code(500);
-    header('Content-Type: application/json');
-    echo json_encode(['error' => 'Uncaught exception', 'message' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
-    exit;
-});
-set_error_handler(function($errno, $errstr, $errfile, $errline){
-    throw new ErrorException($errstr, 0, $errno, $errfile, $errline);
-});
+import React, { useState, useEffect } from 'react'
+import styles from './StoreHeader.module.css'
 
-header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type');
-header('Content-Type: application/json');
+export default function StoreHeader({ page = {}, storeSlug = '', onSearch = null }){
+  const [search, setSearch] = useState('')
 
-$method = $_SERVER['REQUEST_METHOD'];
-if ($method === 'OPTIONS') { http_response_code(200); exit; }
+  useEffect(()=>{
+    if (onSearch) onSearch(search)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search])
 
-$host = '127.0.0.1';
-$db   = 'link_tienda';
-$user = 'root';
-$pass = '';
-$charset = 'utf8mb4';
+  const contact = (page && page.contact_info) || {}
+  // prefer contact.store_name, otherwise page.title only if not equal to numeric slug
+  const pageTitle = page && page.title ? String(page.title) : ''
+  const safeTitle = (pageTitle && pageTitle !== storeSlug && !/^\d+$/.test(pageTitle)) ? pageTitle : ''
+  const storeName = contact.store_name || safeTitle || 'Tienda'
+  const logoUrl = page && page.logo_url ? page.logo_url : null
+  // normalize logo src: if backend returned a relative path, make it absolute
+  let logoSrc = null
+  if (logoUrl) {
+    try {
+      const isAbsolute = /^(https?:)?\/\//.test(logoUrl)
+      if (isAbsolute) logoSrc = logoUrl
+      else {
+        const rel = logoUrl.replace(/^\//, '')
+        logoSrc = window.location.origin + '/' + rel
+      }
+    } catch (e) {
+      logoSrc = logoUrl
+    }
+  }
 
-$dsn = "mysql:host=$host;dbname=$db;charset=$charset";
-$options = [ PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION, PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC, ];
+  function initials(name){
+    if(!name) return 'T'
+    const parts = name.trim().split(/\s+/)
+    if(parts.length === 1) return parts[0].slice(0,2).toUpperCase()
+    return (parts[0][0] + parts[1][0]).toUpperCase()
+  }
 
-try { $pdo = new PDO($dsn, $user, $pass, $options); } catch (PDOException $e) {
-    if ($e->getCode() == 1049) { /* crea DB y tabla pages si no existe */ }
-    else { http_response_code(500); echo json_encode(['error'=>'Database connection failed','detail'=>$e->getMessage()]); exit; }
+  return (
+    <div className={styles.storeHeader}>
+      <div className={styles.topBar}>
+        <div className={styles.topLeft}>
+          <a href="#" className={styles.topLink}>Centro de ayuda</a>
+          <a href="#" className={styles.topLink}>Testimonios</a>
+        </div>
+        <div className={styles.topRight}>COMPRÁ POR MAYOR - CONSULTÁ CON DESCUENTO</div>
+      </div>
+
+      <div className={styles.mainBar}>
+        <div className={styles.container}>
+          <div className={styles.brand}>
+            {logoSrc ? (
+              <img src={logoSrc} alt="logo" className={styles.logo} />
+            ) : (
+              <div className={styles.logoPlaceholder}>{initials(storeName)}</div>
+            )}
+            <div className={styles.brandText}>
+              <div className={styles.brandName}>{storeName}</div>
+            </div>
+          </div>
+
+          <div className={styles.searchWrap}>
+            <div className={styles.searchIcon} aria-hidden>🔍</div>
+            <input className={styles.searchInput} placeholder="¿Qué estás buscando?" value={search} onChange={e=>setSearch(e.target.value)} />
+          </div>
+
+          <div className={styles.actions}>
+            <button className={styles.actionBtn}>Cuenta</button>
+            <button className={styles.actionBtn}>Carrito (0)</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
 }
 
-/* El resto del script crea la tabla `pages` si falta, agrega columna `slug` e índice, y soporta POST/GET */
+--- `frontend/src/components/public/ServiceDetail.jsx` ---
 
-(El contenido completo está en el archivo del repo; aquí es el mismo script que administra creación/listado y retorno en JSON.)
+(Contenido completo)
 
-----------------------------------------
-File: backend/api/products.php
-Path: backend/api/products.php
-Description: Devuelve JSON con `products`. Si la BD o tabla no existen, intenta crearlas e insertar datos de ejemplo.
-Content:
+import React, { useEffect, useState } from 'react'
+import * as api from '../../components/admin/adminApi'
 
-<?php
-// backend/api/products.php
-// Devuelve la lista de productos en JSON desde la base de datos `link_tienda`.
+export default function ServiceDetail({ store, serviceId }){
+  const [service, setService] = useState(null)
+  const [page, setPage] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+  const [date, setDate] = useState('')
+  const [slots, setSlots] = useState([])
+  const [selectedSlot, setSelectedSlot] = useState(null)
+  const [reservedMap, setReservedMap] = useState({})
+  const [capacityMap, setCapacityMap] = useState({})
+  const [name, setName] = useState('')
+  const [phone, setPhone] = useState('')
+  const [resStatus, setResStatus] = useState(null)
+  const [resLoading, setResLoading] = useState(false)
 
-header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: GET, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type');
-header('Content-Type: application/json');
+  useEffect(()=>{
+    let mounted = true
+    async function load(){
+      try{
+        const s = await api.getService(serviceId)
+        if (!mounted) return
+        if (!s || !s.ok) { setError(s && s.message ? s.message : 'Servicio no encontrado'); setLoading(false); return }
+        setService(s.service)
+        if (store) {
+          try{ const sp = await fetch(`http://localhost/LinkTiendas/Link%20Tienda/backend/api/pages.php?slug=${encodeURIComponent(store)}`)
+            if (sp.ok){ const dd = await sp.json(); setPage(dd.page || null) }
+          }catch(e){}
+      }catch(e){ setError('Error de red') }
+      setLoading(false)
+    }
+    load()
+    return ()=>{ mounted = false }
+  }, [store, serviceId])
 
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') { http_response_code(200); exit; }
+  async function loadSlotsForDate(d){
+    if (!page || !page.id) return
+    setSlots([]); setSelectedSlot(null)
+    try{
+      const resp = await api.getTurns(page.id, d, d)
+      if (!resp || !resp.ok) { setSlots([]); return }
+      const all = resp.turns || []
+      const filtered = all.filter(t => Number(t.service_id) === Number(serviceId))
+      if (filtered.length > 0) {
+        setSlots(filtered)
+        const cmap = {}
+        filtered.forEach(t => {
+          if (t.start_time) {
+            const k = (t.start_time || '').toString().slice(0,5)
+            cmap[k] = t.capacity ? parseInt(t.capacity) : null
+          }
+        })
+        setCapacityMap(cmap)
+      } else {
+        const gen = []
+        try {
+          const duration = service && service.duration_minutes ? parseInt(service.duration_minutes) : null
+          const open = page.open_time || null
+          const close = page.close_time || null
+          if (duration && open && close) {
+            const startDt = new Date(d + 'T' + (open.length===8 ? open : open + ':00'))
+            const closeDt = new Date(d + 'T' + (close.length===8 ? close : close + ':00'))
+            let cur = new Date(startDt)
+            let idx = 0
+            while (true) {
+              const end = new Date(cur.getTime() + duration * 60000)
+              if (end > closeDt) break
+              const hh = String(cur.getHours()).padStart(2,'0') + ':' + String(cur.getMinutes()).padStart(2,'0')
+              gen.push({ id: `gen-${idx}-${hh}`, page_id: page.id, service_id: serviceId, date: d, start_time: hh, end_time: end.toTimeString().split(' ')[0] })
+              idx++
+              cur = new Date(cur.getTime() + duration * 60000)
+            }
+          }
+        } catch(e) { }
+        setSlots(gen)
+        setCapacityMap({})
+      }
+      try{
+        const r = await api.getReservations(page.id, serviceId, d)
+        if (r && r.ok) {
+          const map = {}
+          if (Array.isArray(r.reservations) && r.reservations.length > 0) {
+            r.reservations.forEach(rr => {
+              const st = (rr.start_time||'').toString().slice(0,5)
+              if (!st) return
+              map[st] = (map[st]||0) + 1
+            })
+          } else if (r.reservedMap && typeof r.reservedMap === 'object') {
+            Object.keys(r.reservedMap).forEach(k => {
+              const st = (k||'').toString().slice(0,5)
+              if (!st) return
+              map[st] = 1
+            })
+          }
+          setReservedMap(map)
+        } else {
+          setReservedMap({})
+        }
+      }catch(e){ setReservedMap({}) }
+    }catch(e){ setSlots([]) }
+  }
 
-$host = '127.0.0.1';
-$db   = 'link_tienda';
-$user = 'root';
-$pass = '';
-$charset = 'utf8mb4';
+  useEffect(()=>{
+    if (date && page && page.id) { loadSlotsForDate(date) }
+  }, [page, date])
 
-$dsn = "mysql:host=$host;dbname=$db;charset=$charset";
-$options = [ PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION, PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC, ];
+  async function confirmReservation(){
+    if (!selectedSlot) { setResStatus({ ok:false, message:'Seleccione un horario' }); return }
+    try{
+      setResLoading(true)
+      const payload = { service_id: serviceId, date: selectedSlot.date, start_time: selectedSlot.start_time, customer_name: name, customer_phone: phone }
+      const res = await api.createReservation(page.id, payload)
+      setResStatus(res)
+      if (res && res.ok) { await loadSlotsForDate(selectedSlot.date) }
+      setResLoading(false)
+    }catch(e){ setResStatus({ ok:false, message:'Error de red' }) }
+  }
 
-try { $pdo = new PDO($dsn, $user, $pass, $options); } catch (PDOException $e) {
-    if ($e->getCode() == 1049) { /* crea DB y tabla products y datos de ejemplo */ }
-    else { http_response_code(500); echo json_encode(['error'=>'Database connection failed','detail'=>$e->getMessage()]); exit; }
+  if (loading) return <div style={{ padding: 20 }}>Cargando...</div>
+  if (error) return <div style={{ padding: 20, color: '#c55' }}>{error}</div>
+  if (!service) return <div style={{ padding: 20 }}>Servicio no encontrado</div>
+
+  return (
+    <div style={{ maxWidth: 1000, margin: '0 auto', padding: 20 }}>
+      <header style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        {page && page.logo_url && <img src={page.logo_url} alt="logo" style={{ width:64,height:64,objectFit:'cover',borderRadius:8 }} />}
+        <div>
+          <h2 style={{ margin:0 }}>{service.name}</h2>
+          <div style={{ color:'#666' }}>{service.duration_minutes} min · {service.price ? `$${service.price}` : 'Precio no disponible'}</div>
+        </div>
+      </header>
+
+      <main style={{ display:'grid', gridTemplateColumns:'1fr 360px', gap:20, marginTop:12 }}>
+        <div>
+          <h3>Descripción</h3>
+          <div>{service.description || 'Sin descripción.'}</div>
+        </div>
+        <aside style={{ border:'1px solid #eee', padding:12, borderRadius:8 }}>
+          <h4>Reservar</h4>
+          <div style={{ marginBottom:8 }}>
+            <label>Fecha</label>
+            <input type="date" value={date} onChange={e=>{ setDate(e.target.value); loadSlotsForDate(e.target.value) }} style={{ width:'100%', padding:8, marginTop:6 }} />
+          </div>
+          <div style={{ marginBottom:8 }}>
+            <label>Horarios</label>
+            <div style={{ display:'flex', flexWrap:'wrap', gap:8, marginTop:6 }}>
+              {slots.length === 0 ? <div style={{ color:'#666' }}>Seleccione una fecha para ver horarios</div> : slots.map(s => {
+                const rawStart = (s.start_time||'').toString()
+                const st = rawStart.slice(0,5)
+                const reservedCount = (reservedMap[st] || reservedMap[rawStart] || reservedMap[st+':00'] || 0)
+                const capacity = (capacityMap[st] || capacityMap[rawStart] || capacityMap[st+':00'] || null)
+                const isFull = capacity && capacity > 0 && reservedCount >= capacity
+                const isReserved = reservedCount > 0
+                const isSelected = selectedSlot && selectedSlot.id === s.id
+                const disabled = isFull || isReserved
+                let bg = '#f5f5f5'
+                let color = '#000'
+                if (isSelected) { bg = '#2a9d8f'; color = '#fff' }
+                else if (isFull) { bg = '#9b2b2b'; color = '#fff' }
+                else if (isReserved) { bg = '#c0392b'; color = '#fff' }
+                return (
+                  <button key={s.id} onClick={()=>{ if (!disabled) setSelectedSlot(s) }} disabled={disabled} className={disabled ? 'reservado' : ''} aria-disabled={disabled} style={{ padding:'6px 10px', background: bg, color, border:'none', borderRadius:6, cursor: disabled ? 'not-allowed' : 'pointer', opacity: disabled ? 0.9 : 1 }}>{s.start_time}</button>
+                )
+              })}
+            </div>
+          </div>
+          <div style={{ marginBottom:8 }}>
+            <input placeholder="Nombre (opcional)" value={name} onChange={e=>setName(e.target.value)} style={{ width:'100%', padding:8, marginBottom:8 }} />
+            <input placeholder="Teléfono (opcional)" value={phone} onChange={e=>setPhone(e.target.value)} style={{ width:'100%', padding:8 }} />
+          </div>
+          <div>
+            <button onClick={confirmReservation} style={{ width:'100%', padding:10, background:'#2a9d8f', color:'#fff', border:'none', borderRadius:6 }}>Confirmar reserva</button>
+          </div>
+          {resStatus ? (<div style={{ marginTop:8, color: resStatus.ok ? '#2a9d8f' : '#c55' }}>{resStatus.ok ? 'Reserva confirmada' : (resStatus.message || 'Error')}</div>) : null}
+        </aside>
+      </main>
+    </div>
+  )
 }
 
-try {
-    $stmt = $pdo->query('SELECT id, name, price FROM products');
-    $products = $stmt->fetchAll();
-    echo json_encode(['products' => $products]);
-} catch (PDOException $e) {
-    http_response_code(500);
-    echo json_encode(['error' => 'Query failed', 'detail' => $e->getMessage()]);
-    exit;
+--- `frontend/src/components/public/ProductDetail.jsx` ---
+
+(Contenido completo)
+
+import React, { useEffect, useState } from 'react'
+import * as api from '../../components/admin/adminApi'
+
+export default function ProductDetail({ store, productId }) {
+  const [product, setProduct] = useState(null)
+  const [storePage, setStorePage] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+
+  useEffect(() => {
+    let mounted = true
+    async function load(){
+      try{
+        const p = await api.getProduct(productId)
+        if (!mounted) return
+        if (!p || !p.ok) { setError(p && p.message ? p.message : 'Producto no encontrado'); setLoading(false); return }
+        setProduct(p.product)
+        if (store) {
+          try {
+            const sp = await fetch(`http://localhost/LinkTiendas/Link%20Tienda/backend/api/pages.php?slug=${encodeURIComponent(store)}`)
+            if (sp.ok){ const dd = await sp.json(); setStorePage(dd.page || null) }
+          } catch(e) {}
+        }
+      }catch(e){ setError('Error de red') }
+      setLoading(false)
+    }
+    load()
+    return () => { mounted = false }
+  }, [store, productId])
+
+  if (loading) return <div style={{ padding: 20 }}>Cargando...</div>
+  if (error) return <div style={{ padding: 20, color: '#c55' }}>{error}</div>
+  if (!product) return <div style={{ padding: 20 }}>Producto no encontrado</div>
+
+  const img = product.image_url || (storePage && storePage.logo_url) || '/backend/uploads/placeholder.png'
+  const price = product.on_sale && product.sale_price ? product.sale_price : product.price
+
+  return (
+    <div style={{ maxWidth: 900, margin: '0 auto', padding: 20 }}>
+      <header style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        {storePage && storePage.logo_url && <img src={storePage.logo_url} alt="logo" style={{ width: 64, height: 64, objectFit: 'cover', borderRadius: 8 }} />}
+        <div>
+          <h2 style={{ margin: 0 }}>{product.name}</h2>
+          <div style={{ color: '#666' }}>{product.category || 'Sin categoría'}</div>
+        </div>
+      </header>
+
+      <main style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 20, marginTop: 16 }}>
+        <div>
+          <img src={img} alt={product.name} style={{ width: '100%', height: 420, objectFit: 'cover', borderRadius: 8 }} />
+          <div style={{ marginTop: 12 }}>
+            <h3>Descripción</h3>
+            <div style={{ color: '#333' }}>{product.description || 'Sin descripción disponible.'}</div>
+          </div>
+        </div>
+        <aside style={{ border: '1px solid #eee', padding: 12, borderRadius: 8 }}>
+          <div style={{ fontSize: 18, fontWeight: 'bold' }}>${price}</div>
+          {product.on_sale && product.sale_price ? <div style={{ color: '#c55' }}>Oferta: ${product.sale_price}</div> : null}
+          <div style={{ marginTop: 12 }}>
+            <a href={storePage && storePage.contact_info && storePage.contact_info.whatsapp ? `https://wa.me/${storePage.contact_info.whatsapp}?text=${encodeURIComponent('Quiero comprar: ' + product.name)}` : '#'}>
+              <button style={{ width: '100%', padding: '10px 12px', background: '#2a9d8f', color: '#fff', borderRadius: 6, border: 'none' }}>Comprar / WhatsApp</button>
+            </a>
+          </div>
+        </aside>
+      </main>
+    </div>
+  )
 }
 
-----------------------------------------
-File: backend/api/upload_images.php
-Path: backend/api/upload_images.php
-Description: Recibe peticiones multipart/form-data, guarda archivos en `backend/uploads/` y devuelve URLs públicas a los archivos guardados.
-Content:
+--- `frontend/src/App.jsx` ---
 
-<?php
-// backend/api/upload_images.php
-// Recibe archivos multipart y los guarda en backend/uploads/
-header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: POST, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type');
-header('Content-Type: application/json');
+(Contenido completo)
 
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') { http_response_code(200); exit; }
+import React, { useEffect, useState } from 'react'
+import { Routes, Route, Link } from 'react-router-dom'
+import Admin from './Admin'
+import PageViewer from './PageViewer'
+import ProductDetail from './components/public/ProductDetail'
+import ServiceDetail from './components/public/ServiceDetail'
+import { useParams } from 'react-router-dom'
 
-$uploadDir = __DIR__ . '/../uploads';
-if (!is_dir($uploadDir)) { mkdir($uploadDir, 0755, true); }
+export default function App(){
+  const [pages, setPages] = useState([])
 
-$saved = [];
-foreach ($_FILES as $file) {
-    /* guarda archivos y arma URLs */
+  useEffect(()=>{
+    async function load(){
+      try{ const res = await fetch('http://localhost/LinkTiendas/Link%20Tienda/backend/api/pages.php'); if(!res.ok) return; const data = await res.json(); setPages(data.pages || []) }catch(e){}
+    }
+    load()
+  },[])
+
+  const visiblePages = (pages || []).filter(p => !(p.title && /^\d+$/.test(String(p.title))))
+
+  return (
+    <div style={{ padding: 0 }}>
+      {visiblePages.length > 0 ? (
+        <header style={{ marginBottom: 16 }}>
+          <nav style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {visiblePages.map(p => (
+              <Link key={p.id} to={`/${p.slug}`} style={{ padding: '6px 10px', background: '#f0f0f0', borderRadius: 4, textDecoration: 'none', color: '#111' }}>{p.title}</Link>
+            ))}
+          </nav>
+        </header>
+      ) : null}
+
+      <main>
+        <Routes>
+          <Route path="/admin/*" element={<Admin/>} />
+          <Route path="/:storeSlug/service/:serviceId" element={<ServiceDetailWrapper/>} />
+          <Route path="/:storeSlug/product/:productId" element={<ProductDetailWrapper/>} />
+          <Route path="/:storeSlug" element={<PageViewerWrapper/>} />
+          <Route path="/" element={<div>Landing — seleccione una tienda</div>} />
+        </Routes>
+      </main>
+    </div>
+  )
 }
 
-echo json_encode(['uploaded' => $saved]);
+function PageViewerWrapper(){
+  const { storeSlug } = useParams()
+  return <PageViewer slug={storeSlug} />
+}
 
-Nota: Las URLs devueltas están construidas usando `$_SERVER['HTTP_HOST']` y el path que incluye espacios codificados (`Link%20Tienda`) según la estructura actual.
+function ProductDetailWrapper(){
+  const { storeSlug, productId } = useParams()
+  return <ProductDetail store={storeSlug} productId={productId} />
+}
 
-----------------------------------------
-File: backend/page.php
-Path: backend/page.php
-Description: Vista pública HTML de una página creada. Soporta consultar por `?id=` o `?slug=` y renderiza HTML simple con título, contenido y fecha de creación.
-Content:
+function ServiceDetailWrapper(){
+  const { storeSlug, serviceId } = useParams()
+  return <ServiceDetail store={storeSlug} serviceId={serviceId} />
+}
 
-<?php
-// backend/page.php
-// Muestra una página creada desde el panel de administración (parámetro ?id= o ?slug=)
+Notas finales
+- Si querés que incluya más archivos completos (por ejemplo `styles.css`, `StoreHeader.module.css`, o scripts en `backend/api/`), lo agrego en una nueva versión del `chatgpt.txt`.
+- Si el "1" que viste persiste, puede provenir del backend; puedo ejecutar una búsqueda adicional en `backend/**` o revisar respuestas reales desde el endpoint para ver contenido crudo.
 
-$id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
-$slug = isset($_GET['slug']) ? trim($_GET['slug']) : null;
+Fin del volcado.
 
-/* Conecta a la BD y recupera la fila de `pages` por id o slug. Escapa y convierte saltos a <br>. */
-
-?><!doctype html>
-<html>
-  <head>
-  <meta charset="utf-8">
-  <title><?php echo $title; ?></title>
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <style>body{font-family:Arial,Helvetica,sans-serif;padding:20px;max-width:800px;margin:auto}h1{font-size:24px}</style>
-  </head>
-  <body>
-  <h1><?php echo $title; ?></h1>
-  <div><?php echo $content; ?></div>
-  <p style="color:#666;font-size:12px;margin-top:20px">Creado: <?php echo $page['created_at']; ?></p>
-  </body>
-</html>
-
-----------------------------------------
-File: db/init.sql
-Path: db/init.sql
-Description: Script SQL para inicializar la BD `link_tienda` con tablas `products` y `pages` y filas de ejemplo.
-Content:
-
--- Script de inicialización para XAMPP / phpMyAdmin
-CREATE DATABASE IF NOT EXISTS `link_tienda` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-USE `link_tienda`;
-
-CREATE TABLE IF NOT EXISTS `products` (
-  `id` INT NOT NULL AUTO_INCREMENT,
-  `name` VARCHAR(255) NOT NULL,
-  `price` DECIMAL(10,2) NOT NULL DEFAULT 0.00,
-  PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
-INSERT INTO `products` (`name`, `price`) VALUES
-('Camiseta', 19.90),
-('Pantalones', 39.50),
-('Gorra', 9.99);
-
-CREATE TABLE IF NOT EXISTS `pages` (
-  `id` INT NOT NULL AUTO_INCREMENT,
-  `title` VARCHAR(255) NOT NULL,
-  `content` TEXT NOT NULL,
-  `promo_message` TEXT NULL,
-  `images` TEXT NULL,
-  `categories` TEXT NULL,
-  `slug` VARCHAR(255) NULL,
-  `section_type` VARCHAR(100) NULL,
-  `contact_info` TEXT NULL,
-  `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
--- Inserta ejemplo de página
-INSERT INTO `pages` (`title`, `content`, `promo_message`, `images`, `categories`, `section_type`, `contact_info`, `slug`) VALUES
-('Página de ejemplo', 'Contenido de prueba para la página de ejemplo.', '5% off en compras mayores a $50', '[]', '[]', 'Ofertas destacadas', '{}', 'pagina-de-ejemplo');
 
 ----------------------------------------
 File: frontend/index.html

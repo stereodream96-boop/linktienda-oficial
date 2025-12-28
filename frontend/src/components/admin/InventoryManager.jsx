@@ -4,7 +4,8 @@ import * as api from './adminApi'
 export default function InventoryManager({ page, categoryOptions = [] }){
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(false)
-  const [form, setForm] = useState({ name:'', price:'', stock:'', sku:'', category:'', on_sale:0, sale_price:'', featured:0 })
+  const [form, setForm] = useState({ name:'', price:'', stock:'', sku:'', category:'', on_sale:0, sale_price:'', featured:0, files: null })
+  const [previews, setPreviews] = useState([])
   const [msg, setMsg] = useState('')
 
   useEffect(()=>{ if(page && page.id) load() }, [page])
@@ -22,9 +23,21 @@ export default function InventoryManager({ page, categoryOptions = [] }){
     e.preventDefault(); setMsg('')
     if (categoryOptions && categoryOptions.length > 0 && (!form.category || form.category.trim() === '')) { setMsg('Seleccioná una categoría'); return }
     try{
-      const data = await api.createProduct(page.id, { name: form.name, price: parseFloat(form.price||0), stock: parseInt(form.stock||0), sku: form.sku, category: form.category, on_sale: form.on_sale, sale_price: form.sale_price ? parseFloat(form.sale_price) : null, featured: form.featured })
+      let image_url = null
+      let images_json = null
+      if (form.files && form.files.length > 0) {
+        const up = await api.uploadImages(form.files)
+        if (up && up.uploaded && up.uploaded.length > 0) {
+          images_json = up.uploaded
+          image_url = up.uploaded[0]
+        }
+      }
+      const payload = { name: form.name, price: parseFloat(form.price||0), stock: parseInt(form.stock||0), sku: form.sku, category: form.category, on_sale: form.on_sale, sale_price: form.sale_price ? parseFloat(form.sale_price) : null, featured: form.featured }
+      if (image_url) payload.image_url = image_url
+      if (images_json) payload.images_json = images_json
+      const data = await api.createProduct(page.id, payload)
       if (!data.ok) setMsg(data.message || 'Error')
-      else { setForm({ name:'',price:'',stock:'',sku:'', category:'', on_sale:0, sale_price:'', featured:0 }); load() }
+      else { setForm({ name:'',price:'',stock:'',sku:'', category:'', on_sale:0, sale_price:'', featured:0, files: null }); load() }
     }catch(e){ setMsg('Error de red') }
   }
 
@@ -57,7 +70,11 @@ export default function InventoryManager({ page, categoryOptions = [] }){
         {categoryOptions && categoryOptions.length > 0 ? (
           <select value={form.category||''} onChange={e=>setForm(f=>({...f,category:e.target.value}))} required>
             <option value="">Seleccionar categoría...</option>
-            {categoryOptions.map((c,i)=>(<option key={i} value={c}>{c}</option>))}
+            {categoryOptions.map((c,i)=>(
+              <option key={i} value={typeof c === 'string' ? c : c.name}>
+                {typeof c === 'string' ? c : c.name}
+              </option>
+            ))}
           </select>
         ) : (
           <input placeholder="Categoría" value={form.category} onChange={e=>setForm(f=>({...f,category:e.target.value}))} />
@@ -65,6 +82,19 @@ export default function InventoryManager({ page, categoryOptions = [] }){
         <label style={{ display:'inline-flex', alignItems:'center', gap:6, marginLeft:8 }}><input type="checkbox" checked={!!form.on_sale} onChange={e=>setForm(f=>({...f,on_sale: e.target.checked ? 1 : 0}))} /> On Sale</label>
         {form.on_sale ? <input placeholder="Precio en oferta" value={form.sale_price} onChange={e=>setForm(f=>({...f,sale_price:e.target.value}))} /> : null}
         <label style={{ display:'inline-flex', alignItems:'center', gap:6, marginLeft:8 }}><input type="checkbox" checked={!!form.featured} onChange={e=>setForm(f=>({...f,featured: e.target.checked ? 1 : 0}))} /> Destacado</label>
+        <div style={{ marginTop:8 }}>
+          <input type="file" accept="image/*" multiple onChange={e=>{
+            const files = e.target.files
+            setForm(f=>({...f,files}))
+            if (files && files.length>0) {
+              const arr = Array.from(files).map(f=>URL.createObjectURL(f))
+              setPreviews(arr)
+            } else setPreviews([])
+          }} />
+          <div style={{ display:'flex', gap:8, marginTop:8 }}>
+            {previews.map((src,i)=>(<img key={i} src={src} alt={`preview-${i}`} style={{ width:48, height:48, objectFit:'cover', borderRadius:6 }} />))}
+          </div>
+        </div>
         <button type="submit">Agregar</button>
       </form>
       {msg && <div style={{ color: '#c55' }}>{msg}</div>}
@@ -94,14 +124,26 @@ function Row({ item, onUpdate, onDelete, categoryOptions = [] }){
             {categoryOptions && categoryOptions.length > 0 ? (
               <select value={st.category||''} onChange={e=>setSt(s=>({...s,category:e.target.value}))}>
                 <option value="">-- categoría --</option>
-                {categoryOptions.map((c,i)=>(<option key={i} value={c}>{c}</option>))}
+                {categoryOptions.map((c,i)=>(
+                  <option key={i} value={typeof c === 'string' ? c : c.name}>
+                    {typeof c === 'string' ? c : c.name}
+                  </option>
+                ))}
               </select>
             ) : (
               <input placeholder="Categoría" value={st.category} onChange={e=>setSt(s=>({...s,category:e.target.value}))} />
             )}
           </div>
         ) : (
-          <div>{item.name}<div style={{ fontSize:12, color:'#666' }}>{item.category ? item.category : ''} {item.on_sale ? ' • Oferta' : ''} {item.featured ? ' • Destacado' : ''}</div></div>
+          <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+            <div style={{ width: 64, height: 64, flex: '0 0 64px' }}>
+              {item.image_url ? <img src={item.image_url} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 6 }} /> : <div style={{ width: '100%', height: '100%', background: '#f5f5f5', borderRadius: 6 }} />}
+            </div>
+            <div>
+              <div style={{ fontWeight: 700 }}>{item.name}</div>
+              <div style={{ fontSize:12, color:'#666' }}>{item.category ? item.category : ''} {item.on_sale ? ' • Oferta' : ''} {item.featured ? ' • Destacado' : ''}</div>
+            </div>
+          </div>
         )}
       </td>
       <td>{edit ? <input value={st.price} onChange={e=>setSt(s=>({...s,price:e.target.value}))} /> : item.price}</td>

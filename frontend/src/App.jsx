@@ -16,20 +16,10 @@ export default function App(){
     load()
   },[])
 
-  return (
-    <div style={{ padding: 20 }}>
-      <header style={{ marginBottom: 16 }}>
-        {pages && pages.length > 0 ? (
-          <nav style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            {pages.map(p => (
-              <Link key={p.id} to={`/${p.slug}`} style={{ padding: '6px 10px', background: '#f0f0f0', borderRadius: 4, textDecoration: 'none', color: '#111' }}>{p.title}</Link>
-            ))}
-          </nav>
-        ) : (
-          <div style={{ color: '#666' }}>No hay páginas creadas todavía.</div>
-        )}
-      </header>
+  const visiblePages = (pages || []).filter(p => !(p.title && /^\d+$/.test(String(p.title))))
 
+  return (
+    <div style={{ padding: 0 }}>
       <main>
         <Routes>
           <Route path="/admin/*" element={<Admin/>} />

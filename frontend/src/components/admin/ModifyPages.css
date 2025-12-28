@@ -7,11 +7,49 @@
 .modify-top { display:flex; gap:12px; align-items:center; margin-bottom:12px }
 .search-input { flex:1; padding:8px 10px; border-radius:6px; border:1px solid #2b3946; background:#081016; color:#e6eef8 }
 .results-ind { color:#9fb3d8 }
-.admin-aside { width: 260px; background: #071018; padding: 16px; border-radius: 8px; height: calc(100vh - 40px); box-sizing: border-box }
-.admin-aside-top button { width:100%; padding:8px; background:#0b76ef; color:#fff; border:none; border-radius:6px }
-.admin-aside-list { margin-top:12px; padding:0; list-style:none }
-.admin-aside-list li { margin-bottom:8px }
-.admin-aside-list a { color:#cfe6ff; text-decoration:none }
+.admin-aside {
+  width: 260px;
+  background: linear-gradient(180deg, #051219 0%, #071018 100%);
+  padding: 18px;
+  border-radius: 0;
+  height: 100vh;
+  position: sticky;
+  top: 0;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 6px 18px rgba(2,6,23,0.6);
+  overflow-y: auto;
+}
+.admin-aside-top button {
+  width: 100%;
+  padding: 10px 12px;
+  background: linear-gradient(180deg, #2a9dff 0%, #0b76ef 100%);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-weight: 700;
+  box-shadow: 0 4px 10px rgba(11,118,239,0.18);
+  cursor: pointer;
+  transition: transform .12s ease, box-shadow .12s ease;
+}
+.admin-aside-top button:hover { transform: translateY(-2px); box-shadow: 0 6px 14px rgba(11,118,239,0.22); }
+.admin-aside-list { margin-top: 14px; padding: 0; list-style: none; flex: 1; }
+.admin-aside-list li { margin-bottom: 6px }
+.admin-aside-list a {
+  color: #dbeeff;
+  text-decoration: none;
+  display: block;
+  padding: 8px 10px;
+  border-radius: 8px;
+  transition: background .12s ease, color .12s ease, padding-left .12s ease;
+}
+.admin-aside-list a:hover {
+  background: rgba(255,255,255,0.03);
+  color: #fff;
+  padding-left: 14px;
+}
+.admin-aside-list a.active { background: rgba(11,118,239,0.12); color: #fff }
 .modify-form { margin-top: 16px; background: rgba(255,255,255,0.02); padding: 16px; border-radius:8px }
 .field { margin-bottom: 12px }
 .field label { display:block; font-weight:600; margin-bottom:6px }

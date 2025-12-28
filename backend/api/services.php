@@ -18,11 +18,13 @@ $dsn = "mysql:host=$host;dbname=$db;charset=$charset";
 $options = [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION, PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC];
 try { $pdo = new PDO($dsn, $user, $pass, $options); } catch (PDOException $e) { http_response_code(500); echo json_encode(['error'=>'DB connection failed','detail'=>$e->getMessage()]); exit; }
 
-// Ensure page_services table exists (include optional category field)
+// Ensure page_services table exists (include optional fields)
 try {
     $pdo->exec("CREATE TABLE IF NOT EXISTS `page_services` (
         `id` INT NOT NULL AUTO_INCREMENT,
         `page_id` INT NOT NULL,
+        `description` TEXT NULL,
+        `images_json` TEXT NULL,
         `name` VARCHAR(255) NOT NULL,
         `price` DECIMAL(10,2) DEFAULT 0,
         `duration_minutes` INT NOT NULL,
@@ -33,8 +35,10 @@ try {
         INDEX (`page_id`)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
 } catch (PDOException $e) { }
-// Try to add category column if missing (safe: ignore errors)
+// Try to add category/description/images_json columns if missing (safe: ignore errors)
 try { $pdo->exec("ALTER TABLE page_services ADD COLUMN category VARCHAR(100) NULL"); } catch (PDOException $e) { }
+try { $pdo->exec("ALTER TABLE page_services ADD COLUMN description TEXT NULL"); } catch (PDOException $e) { }
+try { $pdo->exec("ALTER TABLE page_services ADD COLUMN images_json TEXT NULL"); } catch (PDOException $e) { }
 
 function ensure_service_page($pdo, $page_id) {
     $stmt = $pdo->prepare('SELECT page_type FROM pages WHERE id = :id');
@@ -51,7 +55,7 @@ try {
         if (isset($_GET['action']) && $_GET['action'] === 'get' && isset($_GET['id'])) {
             $id = (int)$_GET['id'];
             if ($id <= 0) { echo json_encode(['ok'=>false,'message'=>'id requerido']); exit; }
-            $stmt = $pdo->prepare('SELECT id,page_id,name,price,duration_minutes,category,active,created_at FROM page_services WHERE id = :id LIMIT 1');
+            $stmt = $pdo->prepare('SELECT id,page_id,name,price,duration_minutes,category,active,description,images_json,created_at FROM page_services WHERE id = :id LIMIT 1');
             $stmt->execute([':id'=>$id]);
             $row = $stmt->fetch();
             if (!$row) { echo json_encode(['ok'=>false,'message'=>'Servicio no encontrado']); exit; }
@@ -59,7 +63,7 @@ try {
             $stmt2 = $pdo->prepare('SELECT page_type FROM pages WHERE id = :id'); $stmt2->execute([':id'=>$row['page_id']]); $p = $stmt2->fetch();
             if (!$p) { echo json_encode(['ok'=>false,'message'=>'Página asociada no encontrada']); exit; }
             $row['description'] = isset($row['description']) ? $row['description'] : '';
-            $row['image_url'] = isset($row['image_url']) ? $row['image_url'] : null;
+            $row['images_json'] = $row['images_json'] ? json_decode($row['images_json'], true) : [];
             echo json_encode(['ok'=>true,'service'=>$row]); exit;
         }
 
@@ -67,9 +71,11 @@ try {
         if ($page_id <= 0) { echo json_encode(['ok'=>false,'message'=>'page_id requerido']); exit; }
         $chk = ensure_service_page($pdo, $page_id);
         if (!$chk['ok']) { echo json_encode($chk); exit; }
-        $stmt = $pdo->prepare('SELECT id,page_id,name,price,duration_minutes,category,active,created_at FROM page_services WHERE page_id = :pid ORDER BY id DESC');
+        $stmt = $pdo->prepare('SELECT id,page_id,name,price,duration_minutes,category,active,description,images_json,created_at FROM page_services WHERE page_id = :pid ORDER BY id DESC');
         $stmt->execute([':pid'=>$page_id]);
         $rows = $stmt->fetchAll();
+        // decode images_json for each row
+        foreach ($rows as &$r) { $r['images_json'] = $r['images_json'] ? json_decode($r['images_json'], true) : []; }
         echo json_encode(['ok'=>true,'services'=>$rows]); exit;
     }
 
@@ -85,8 +91,10 @@ try {
             $chk = ensure_service_page($pdo, $page_id);
             if (!$chk['ok']) { echo json_encode($chk); exit; }
             $category = isset($input['category']) ? (trim($input['category']) === '' ? null : trim($input['category'])) : null;
-            $stmt = $pdo->prepare('INSERT INTO page_services (page_id,name,price,duration_minutes,category,active) VALUES (:page_id,:name,:price,:duration,:category,:active)');
-            $stmt->execute([':page_id'=>$page_id,':name'=>$name,':price'=>$price,':duration'=>$duration,':category'=>$category,':active'=>$active]);
+            $description = isset($input['description']) ? trim($input['description']) : null;
+            $images_json = isset($input['images_json']) ? json_encode($input['images_json']) : null;
+            $stmt = $pdo->prepare('INSERT INTO page_services (page_id,name,price,duration_minutes,category,active,description,images_json) VALUES (:page_id,:name,:price,:duration,:category,:active,:description,:images)');
+            $stmt->execute([':page_id'=>$page_id,':name'=>$name,':price'=>$price,':duration'=>$duration,':category'=>$category,':active'=>$active,':description'=>$description,':images'=>$images_json]);
             echo json_encode(['ok'=>true,'id'=>$pdo->lastInsertId(),'received'=> $input]); exit;
         }
 
@@ -105,6 +113,8 @@ try {
             if (array_key_exists('price',$input)) { $fields[] = 'price = :price'; $params[':price'] = (float)$input['price']; }
             if (array_key_exists('duration_minutes',$input)) { $fields[] = 'duration_minutes = :duration'; $params[':duration'] = (int)$input['duration_minutes']; }
             if (array_key_exists('category',$input)) { $fields[] = 'category = :category'; $params[':category'] = strlen(trim($input['category'])) ? trim($input['category']) : null; }
+            if (array_key_exists('description',$input)) { $fields[] = 'description = :description'; $params[':description'] = trim($input['description']); }
+            if (array_key_exists('images_json',$input)) { $fields[] = 'images_json = :images_json'; $params[':images_json'] = is_array($input['images_json']) ? json_encode($input['images_json']) : $input['images_json']; }
             if (array_key_exists('active',$input)) { $fields[] = 'active = :active'; $params[':active'] = (int)$input['active']; }
             if (empty($fields)) { echo json_encode(['ok'=>false,'message'=>'No hay cambios para aplicar']); exit; }
             $sql = 'UPDATE page_services SET '.implode(', ',$fields).' WHERE id = :id';

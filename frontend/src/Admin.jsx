@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import AdminLayout from './components/admin/AdminLayout'
 import ModifyPages from './components/admin/ModifyPages'
 import ManagePage from './components/admin/ManagePage'
+import AdminHome from './components/admin/AdminHome'
 import * as api from './components/admin/adminApi'
 
 export default function Admin() {
@@ -71,6 +72,7 @@ export default function Admin() {
   // si el hash indica modificar contenido, mostrar ModifyPages dentro del layout
   const showModify = hash === '#modificar-contenido'
   const showManage = hash === '#gestion' || hash === '#gestion-inventario'
+  const showHome = hash === '#admin-home' || hash === ''
 
   return (
     <AdminLayout>
@@ -78,6 +80,8 @@ export default function Admin() {
         <ModifyPages />
       ) : showManage ? (
         <ManagePage />
+      ) : showHome ? (
+        <AdminHome />
       ) : (
         <section id="crear-paginas" style={{ padding: 16 }}>
           <h2>Admin — Crear página</h2>
@@ -116,7 +120,10 @@ export default function Admin() {
                   <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 6 }}>
                     <select value={s.value} onChange={e => updateSection(i, e.target.value)}>
                       <option>Ofertas destacadas</option>
-                      {categories.map((c, idx) => (<option key={idx}>{c}</option>))}
+                      {categories.map((c, idx) => {
+                        const label = typeof c === 'string' ? c : c.name;
+                        return (<option key={idx} value={label}>{label}</option>);
+                      })}
                     </select>
                     <button type="button" onClick={() => removeSection(i)}>Eliminar sección</button>
                   </div>

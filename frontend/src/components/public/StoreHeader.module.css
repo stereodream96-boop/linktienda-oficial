@@ -1,0 +1,25 @@
+.storeHeader { width: 100%; box-sizing: border-box; }
+.container{ max-width:1200px; margin:0 auto; width:100%; display:flex; align-items:center; justify-content:space-between; padding:0 12px }
+.mainBarSimple{ height:72px; background:transparent; position:sticky; top:0; z-index:50; display:flex; align-items:center; box-shadow: 0 1px 0 rgba(0,0,0,0.04) }
+
+/* When a promo banner is present we want the header to overlay the hero but sit below the banner.
+   The banner defines --promo-height; default to 48px. */
+.overlayBelowPromo {
+  position: absolute;
+  top: var(--promo-height, 48px);
+  left: 0;
+  right: 0;
+  z-index: 80;
+}
+.brandSimple{ display:flex; align-items:center; gap:12px }
+.logo{ height:56px; width:56px; object-fit:cover; border-radius:6px }
+.logoPlaceholder{ height:56px; width:56px; border-radius:50%; background:#eee; display:flex; align-items:center; justify-content:center; font-weight:bold }
+.brandName{ font-weight:700; margin-left:8px; font-size:18px }
+
+@media (max-width:800px){
+  .container{ padding:0 10px }
+  .brandName{ font-size:16px }
+  .logo{ height:44px; width:44px }
+  /* Hide header on small screens - mobile will show hero instead */
+  .mainBarSimple { display: none }
+}

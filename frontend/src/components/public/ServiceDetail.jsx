@@ -9,7 +9,6 @@ export default function ServiceDetail({ store, serviceId }){
   const [date, setDate] = useState('')
   const [slots, setSlots] = useState([])
   const [selectedSlot, setSelectedSlot] = useState(null)
-  const [debugResp, setDebugResp] = useState(null)
   const [reservedMap, setReservedMap] = useState({})
   const [capacityMap, setCapacityMap] = useState({})
   const [name, setName] = useState('')
@@ -42,7 +41,6 @@ export default function ServiceDetail({ store, serviceId }){
     setSlots([]); setSelectedSlot(null)
     try{
       const resp = await api.getTurns(page.id, d, d)
-      setDebugResp(resp)
       if (!resp || !resp.ok) { setSlots([]); return }
       const all = resp.turns || []
       const filtered = all.filter(t => Number(t.service_id) === Number(serviceId))
@@ -142,13 +140,29 @@ export default function ServiceDetail({ store, serviceId }){
 
   return (
     <div style={{ maxWidth: 1000, margin: '0 auto', padding: 20 }}>
-      <header style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-        {page && page.logo_url && <img src={page.logo_url} alt="logo" style={{ width:64,height:64,objectFit:'cover',borderRadius:8 }} />}
-        <div>
-          <h2 style={{ margin:0 }}>{service.name}</h2>
-          <div style={{ color:'#666' }}>{service.duration_minutes} min · {service.price ? `$${service.price}` : 'Precio no disponible'}</div>
-        </div>
-      </header>
+      { /* normalize backend-relative logo url for preview */ }
+      {(() => {
+        const resolvePublicUrl = (u) => {
+          if (!u) return null
+          if (/^https?:\/\//.test(u)) return u
+          const base = 'http://localhost/LinkTiendas/Link%20Tienda'
+          if (u.startsWith('/')) return base + u
+          return base + '/' + u
+        }
+        const logoSrc = page && page.logo_url ? resolvePublicUrl(page.logo_url) : null
+        const storeRoot = (page && (page.slug || page.id)) || store
+        return (
+          <header style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <a href={`/${storeRoot || ''}`} style={{ display: 'flex', alignItems: 'center', textDecoration: 'none', color: 'inherit' }}>
+              {logoSrc && <img src={logoSrc} alt="logo" style={{ width:64,height:64,objectFit:'cover',borderRadius:8 }} />}
+              <div style={{ marginLeft: 8 }}>
+                <h2 style={{ margin:0 }}>{service.name}</h2>
+                <div style={{ color:'#666' }}>{service.duration_minutes} min · {service.price ? `$${service.price}` : 'Precio no disponible'}</div>
+              </div>
+            </a>
+          </header>
+        )
+      })()}
 
       <main style={{ display:'grid', gridTemplateColumns:'1fr 360px', gap:20, marginTop:12 }}>
         <div>
@@ -192,21 +206,7 @@ export default function ServiceDetail({ store, serviceId }){
                 )
               })}
             </div>
-            { /* Debug info visible only in dev */ }
-            <div style={{ marginTop:8, fontSize:12, color:'#666' }}>
-              <div>Debug: page.id={page && page.id ? page.id : 'n/a'} serviceId={serviceId} date={date || 'n/a'}</div>
-              <div>Slots: {slots.length}</div>
-              <div>API resp ok: {debugResp && typeof debugResp.ok !== 'undefined' ? String(debugResp.ok) : 'n/a'}</div>
-              {debugResp && debugResp.turns && Array.isArray(debugResp.turns) && debugResp.turns.length > 0 ? (
-                <div>Turnos totales en respuesta: {debugResp.turns.length}</div>
-              ) : null}
-              <div style={{ marginTop:6 }}>
-                <strong>reservedMap:</strong> {Object.keys(reservedMap).length ? JSON.stringify(reservedMap) : '{}'}
-              </div>
-              <div style={{ marginTop:2 }}>
-                <strong>capacityMap:</strong> {Object.keys(capacityMap).length ? JSON.stringify(capacityMap) : '{}'}
-              </div>
-            </div>
+            { /* debug UI removed for public view */ }
           </div>
           <div style={{ marginBottom:8 }}>
             <input placeholder="Nombre (opcional)" value={name} onChange={e=>setName(e.target.value)} style={{ width:'100%', padding:8, marginBottom:8 }} />

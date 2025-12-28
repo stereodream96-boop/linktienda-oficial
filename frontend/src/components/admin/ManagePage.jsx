@@ -47,6 +47,8 @@ export default function ManagePage(){
                   if (Array.isArray(selected.categories)) categoryOptions = selected.categories
                   else if (typeof selected.categories === 'string') categoryOptions = selected.categories.split(',').map(s=>s.trim()).filter(Boolean)
                 }
+                // ensure options are strings (map objects {name,image_url} -> name)
+                categoryOptions = (categoryOptions || []).map(c => (typeof c === 'string' ? c : (c && c.name ? c.name : ''))).filter(Boolean)
                 return (selected.page_type||selected.pageType) === 'Producto' ? (
                   <InventoryManager page={selected} categoryOptions={categoryOptions} />
                 ) : (
