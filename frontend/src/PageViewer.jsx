@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from 'react'
 import * as api from './components/admin/adminApi'
 import { Link } from 'react-router-dom'
 import StoreHeader from './components/public/StoreHeader'
+import CategoriesSection from './components/CategoriesSection'
 
 export default function PageViewer({ slug = null }) {
   // PageViewer ahora solo maneja la home pública de la tienda: /:storeSlug
@@ -104,6 +105,22 @@ export default function PageViewer({ slug = null }) {
     return '$' + String(n).replace(/\B(?=(\d{3})+(?!\d))/g, '.')
   }
 
+  // get first image URL from an entity (product or service) trying multiple field names
+  function getFirstImage(it){
+    if (!it) return null
+    // images could be array or JSON string
+    if (Array.isArray(it.images) && it.images.length) return it.images[0]
+    if (it.image) return it.image
+    if (it.image_url) return it.image_url
+    if (it.images_json) {
+      try {
+        const arr = typeof it.images_json === 'string' ? JSON.parse(it.images_json) : it.images_json
+        if (Array.isArray(arr) && arr.length) return arr[0]
+      } catch(e) { /* ignore */ }
+    }
+    return null
+  }
+
   // fetch products for sections (cached)
   useEffect(() => {
     if (!page || !page.id) return
@@ -154,6 +171,18 @@ export default function PageViewer({ slug = null }) {
   const cats = catsRaw.map(c => (typeof c === 'string' ? c : (c && c.name ? c.name : ''))).filter(Boolean)
   const contact = (page && page.contact_info) || {}
 
+  // prepare categories array for the CategoriesSection component
+  const categoriesForSection = (catsRaw || []).map(c => {
+    if (typeof c === 'string') return { name: c, image: null, href: `#` }
+    const name = c.name || c.title || ''
+    const href = `/${page.slug || page.id}?category=${encodeURIComponent(name)}`
+    return {
+      name,
+      image: c.image_url || c.image || c.img || null,
+      href
+    }
+  })
+
   // carousel mechanics: duplicate first slide to enable forward-only loop
   const trackRef = useRef(null)
   const [trackTransitionEnabled, setTrackTransitionEnabled] = useState(true)
@@ -195,7 +224,7 @@ export default function PageViewer({ slug = null }) {
   if (!page) return <div style={{ padding: 20 }}>Cargando contenido...</div>
 
   return (
-    <div style={{ ['--promo-height']: '24px' }}>
+    <div className="public-root" style={{ ['--promo-height']: '24px' }}>
       {/* Promo banner (discrete) placed above header */}
       {page && page.promo_message ? (
         <div className="public-promo-banner" role="region" aria-label="Mensaje promocional" style={{ marginBottom: 0 }}>
@@ -237,56 +266,80 @@ export default function PageViewer({ slug = null }) {
       <div className="public-container public-page">
      
 
-        {/* Categories */}
-        <div className="public-categories" style={{ marginBottom: 12 }}>
-        {catsRaw && catsRaw.length > 0 ? (
-          <div className="public-categories-list" style={{ display: 'flex', gap: 16, flexWrap: 'nowrap', overflowX: 'auto', paddingBottom: 8 }}>
-            {catsRaw.map((c, i) => {
-              const name = (typeof c === 'string') ? c : (c && c.name ? c.name : '')
-              const img = (typeof c === 'object' && c && c.image_url) ? resolvePublicUrl(c.image_url) : null
-              return (
-                <button key={i} className="public-category-chip" onClick={() => {}} style={{ background: 'transparent', border: 'none', padding: 0, cursor: 'pointer' }}>
-                  <div className="public-category-avatar-wrap" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                    {img ? (
-                      <img src={img} alt={name} className="public-category-avatar" style={{ width: 72, height: 72, borderRadius: '50%', objectFit: 'cover', boxShadow: '0 1px 3px rgba(0,0,0,0.12)' }} />
-                    ) : (
-                      <div className="public-category-avatar placeholder" style={{ width: 72, height: 72, borderRadius: '50%', background: '#f0f0f0', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#999' }}>{(name && name.substr(0,1)) || '?'}</div>
-                    )}
-                    <div className="public-category-label" style={{ marginTop: 8, fontSize: 12, textAlign: 'center', whiteSpace: 'nowrap' }}>{name}</div>
-                  </div>
-                </button>
-              )
-            })}
-          </div>
-        ) : (
-          <div style={{ color: '#666' }}>Sin categorías</div>
-        )}
-      </div>
+        {/* Categories (premium layout) */}
+        <div style={{ marginBottom: 12 }}>
+          {categoriesForSection && categoriesForSection.length > 0 ? (
+            <>
+              <CategoriesSection categories={categoriesForSection} />
+              <div className="section-separator centered" />
+            </>
+          ) : (
+            <div style={{ color: '#666' }}>Sin categorías</div>
+          )}
+        </div>
 
       {/* Sections dinámicas */}
       {page.page_type && page.page_type.toLowerCase().includes('serv') ? (
-        <section className="public-section" data-section="services" style={{ marginBottom: 20 }}>
-          <h3>Página de servicios</h3>
-          {services.length === 0 ? <div>No hay servicios publicados.</div> : (
-            <div className="card-grid services-grid public-section-grid">
-                  {services.filter(s => {
-                if (!searchTerm) return true
-                const q = searchTerm.toLowerCase()
-                return (s.name && s.name.toLowerCase().includes(q)) || (s.description && s.description.toLowerCase().includes(q))
-              }).map(s => {
-                const to = `/${page.slug || page.id}/service/${s.id}`
-                return (
-                  <Link key={s.id} to={to} target="_blank" rel="noreferrer" style={{ textDecoration: 'none', color: 'inherit' }}>
+        (sections && sections.length > 0) ? (
+          sections.map((sec, idx) => {
+            const key = idx
+            const val = (typeof sec === 'string') ? sec : (sec.value || '')
+            const title = sec.title || val || `Sección ${idx+1}`
+            const items = services.filter(s => {
+              if (!val) return true
+              const sc = (s.category || '').toString().toLowerCase()
+              return sc === val.toString().toLowerCase()
+            }).filter(s => {
+              if (!searchTerm) return true
+              const q = searchTerm.toLowerCase()
+              return (s.name && s.name.toLowerCase().includes(q)) || (s.description && s.description.toLowerCase().includes(q))
+            })
+            return (
+              <section key={key} className="public-section" data-section={val} style={{ marginBottom: 20 }}>
+                <h3>{title}</h3>
+                {items.length === 0 ? <div style={{ color: '#666' }}>No hay servicios para mostrar.</div> : (
+                  <div className="card-grid services-grid public-section-grid">
+                    {items.map(s => {
+                      const to = `/${page.slug || page.id}/service/${s.id}`
+                      const sImg = getFirstImage(s)
+                      return (
+                        <Link key={s.id} to={to} target="_blank" rel="noreferrer" style={{ textDecoration: 'none', color: 'inherit' }}>
+                          <div className="card public-card public-service-card">
+                            <div className="service-thumb" style={sImg ? { backgroundImage: `url(${resolvePublicUrl(sImg)})` } : {}} />
+                            <div className="card-title">{s.name}</div>
+                            <div className="card-meta">{formatPrice(s.price)}</div>
+                          </div>
+                        </Link>
+                      )
+                    })}
+                  </div>
+                )}
+              </section>
+            )
+          })
+        ) : (
+          <section className="public-section" data-section="services" style={{ marginBottom: 20 }}>
+            {services.length === 0 ? <div>No hay servicios publicados.</div> : (
+              <div className="card-grid services-grid public-section-grid">
+                {services.filter(s => {
+                  if (!searchTerm) return true
+                  const q = searchTerm.toLowerCase()
+                  return (s.name && s.name.toLowerCase().includes(q)) || (s.description && s.description.toLowerCase().includes(q))
+                }).map(s => {
+                  const to = `/${page.slug || page.id}/service/${s.id}`
+                  return (
+                    <Link key={s.id} to={to} target="_blank" rel="noreferrer" style={{ textDecoration: 'none', color: 'inherit' }}>
                       <div className="card public-card public-service-card">
-                      <div className="card-title">{s.name}</div>
-                      <div className="card-meta">{s.duration_minutes} min - {formatPrice(s.price)}</div>
-                    </div>
-                  </Link>
-                )
-              })}
-            </div>
-          )}
-        </section>
+                        <div className="card-title">{s.name}</div>
+                          <div className="card-meta">{formatPrice(s.price)}</div>
+                      </div>
+                    </Link>
+                  )
+                })}
+              </div>
+            )}
+          </section>
+        )
       ) : (
         sections.map((sec, idx) => {
           const key = idx
@@ -307,19 +360,23 @@ export default function PageViewer({ slug = null }) {
                       return (p.name && p.name.toLowerCase().includes(q)) || (p.category && p.category.toLowerCase().includes(q))
                     }).map(p => {
                       const to = `/${page.slug || page.id}/product/${p.id}`
+                      const thumbSrc = (Array.isArray(p.images) && p.images[0]) || p.image || p.image_url || null
                       return (
                         <Link key={p.id} to={to} target="_blank" rel="noreferrer" style={{ textDecoration: 'none', color: 'inherit' }}>
                           <div className="card public-card public-product-card">
-                            <div className="card-title">{p.name}</div>
-                            <div className="card-meta">{p.on_sale && p.sale_price ? (
-                              <span><span style={{ textDecoration: 'line-through', marginRight: 6 }}>{formatPrice(p.price)}</span><strong>{formatPrice(p.sale_price)}</strong></span>
-                            ) : (<span>{formatPrice(p.price)}</span>)}</div>
-                            <div className="card-labels">
-                              {p.on_sale ? <span style={{ marginRight: 8, color: '#c55' }}>Oferta</span> : null}
-                              {p.featured ? <span style={{ marginRight: 8, color: '#2a9d8f' }}>Destacado</span> : null}
-                              {p.category ? <span style={{ marginRight: 8 }}>{p.category}</span> : null}
+                              <div className="product-inner">
+                                <div className="product-thumb" style={thumbSrc ? { backgroundImage: `url(${resolvePublicUrl(thumbSrc)})` } : {}} />
+                                <div className="card-title">{p.name}</div>
+                                <div className="card-meta">{p.on_sale && p.sale_price ? (
+                                  <span><span style={{ textDecoration: 'line-through', marginRight: 6 }}>{formatPrice(p.price)}</span><strong>{formatPrice(p.sale_price)}</strong></span>
+                                ) : (<span>{formatPrice(p.price)}</span>)}</div>
+                                <div className="card-labels">
+                                  {p.on_sale ? <span style={{ marginRight: 8, color: '#c55' }}>Oferta</span> : null}
+                                  {p.featured ? <span style={{ marginRight: 8, color: '#2a9d8f' }}>Destacado</span> : null}
+                                  {p.category ? <span style={{ marginRight: 8 }}>{p.category}</span> : null}
+                                </div>
+                              </div>
                             </div>
-                          </div>
                         </Link>
                       )
                     })}
